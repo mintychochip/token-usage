@@ -1,0 +1,16 @@
+[package]
+name = "token-usage-sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Scan existing harness session stores into the shared usage store"
+
+[dependencies]
+serde_json.workspace = true
+thiserror.workspace = true
+token-usage-adapters.workspace = true
+token-usage-domain.workspace = true
+token-usage-store.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

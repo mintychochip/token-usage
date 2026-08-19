@@ -635,6 +635,7 @@ dependencies = [
  "token-usage-adapters",
  "token-usage-domain",
  "token-usage-store",
+ "token-usage-sync",
  "tokio",
  "tower",
 ]
@@ -656,6 +657,18 @@ dependencies = [
  "tempfile",
  "thiserror",
  "token-usage-domain",
+]
+
+[[package]]
+name = "token-usage-sync"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "token-usage-adapters",
+ "token-usage-domain",
+ "token-usage-store",
 ]
 
 [[package]]

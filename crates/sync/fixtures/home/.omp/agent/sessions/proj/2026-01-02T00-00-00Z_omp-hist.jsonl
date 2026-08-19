@@ -1,0 +1,2 @@
+{"type":"session","version":3,"id":"omp-hist","timestamp":"2026-01-02T00:00:00Z"}
+{"type":"message","message":{"role":"assistant","usage":{"input":80,"output":8,"cacheRead":2}}}
