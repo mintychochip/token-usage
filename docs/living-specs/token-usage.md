@@ -86,6 +86,9 @@ queryable together.
 - Prices: parse OpenRouter `/api/v1/models` (LiteLLM object as fallback). Cache
   `prices.json` next to the store. `TOKEN_USAGE_PRICES` overrides. Fetch is
   skipped when `TOKEN_USAGE_PRICES_FETCH=0`. No cost if model or rate is missing.
+- Ambiguous host ids (`opus-5-1m`, `claude-opus-5-200k`) resolve to the longest
+  matching priced id. Exact priced variants win. Do not collapse onto a sibling
+  (`opus-4`). Still no cost when nothing unique matches.
 - Tests drive shipped types and the real store/adapters, using fixture JSON
   rather than live harness processes.
 - Do not hard-code expected totals in tests without feeding those totals
@@ -107,6 +110,7 @@ queryable together.
 - [x] Compaction-aware extra counts (tokens before/after compact)
 - [x] Persist host `model` on observations when present
 - [x] Internal USD estimates from OpenRouter (LiteLLM fallback); cache next to the store
+- [x] Resolve host model variants (`opus-5-1m`) to a priced base id
 - [x] Summary/badge skip global rows when session reports exist for that harness
 
 ## Next
@@ -139,6 +143,7 @@ queryable together.
 | 2026-08-19 | `{harness-home}/usage.json` is the global `/usage` snapshot; `sync --interval` re-reads it | Hosts dump a global approximation separately from session logs |
 | 2026-08-19 | ExtraCounts.tokens_before/after copy Grok `totalTokensBeforeCompaction` / `contextTokensUsed` | Do not invent counts; only map fields the host already sent |
 | 2026-08-19 | Persist optional `model`; estimate USD from OpenRouter (not user-submitted rates) | Cost is internal; missing model/price means no cost |
+| 2026-08-19 | Price lookup strips context-window suffixes and matches hyphen tokens | Hosts send `opus-5-1m`; the catalog has `opus-5`. Exact variant still wins |
 | 2026-08-19 | Summary omits `__harness_global__` when session plugin reports exist for that harness | Global `/usage` is the same totals, not extra usage |
 
 ## Open questions

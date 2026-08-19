@@ -70,7 +70,8 @@ token-usage-reporter export --format jsonl --file usage.jsonl
 model we can price. Rates come from OpenRouter (`GET /api/v1/models`), cached
 next to the store as `prices.json`. You do not submit $/token. Override with
 `TOKEN_USAGE_PRICES=/path/to/prices.json`. Set `TOKEN_USAGE_PRICES_FETCH=0` to
-skip the network. No model or unknown model means no cost.
+skip the network. Host ids like `opus-5-1m` price as `opus-5` when that is
+what the catalog has. No model or unknown model means no cost.
 
 A local `token-usage-api` still exists if you want HTTP on loopback. A public
 `api.mintychochip.dev` is optional and should stay `TOKEN_USAGE_STATELESS=1`
