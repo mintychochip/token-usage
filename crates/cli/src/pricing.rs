@@ -38,12 +38,53 @@ impl PriceTable {
 
     fn get(&self, model: &str) -> Option<&ModelPrice> {
         let key = normalize(model);
-        self.by_id.get(&key).or_else(|| {
+        self.lookup_exact(&key)
+            .or_else(|| self.lookup_variant(&key))
+    }
+
+    fn lookup_exact(&self, key: &str) -> Option<&ModelPrice> {
+        self.by_id.get(key).or_else(|| {
             key.rsplit('/')
                 .next()
                 .filter(|tail| *tail != key)
                 .and_then(|tail| self.by_id.get(tail))
         })
+    }
+
+    fn lookup_variant(&self, key: &str) -> Option<&ModelPrice> {
+        for candidate in stripped_suffixes(key) {
+            if let Some(price) = self.lookup_exact(&candidate) {
+                return Some(price);
+            }
+        }
+        self.best_token_match(key)
+    }
+
+    fn best_token_match(&self, key: &str) -> Option<&ModelPrice> {
+        let query = tokens(key);
+        if query.is_empty() {
+            return None;
+        }
+        let mut best_score = 0usize;
+        let mut best: Option<&ModelPrice> = None;
+        let mut conflict = false;
+        for (id, price) in &self.by_id {
+            let Some(score) = suffix_match_score(&tokens(id), &query) else {
+                continue;
+            };
+            if score > best_score {
+                best_score = score;
+                best = Some(price);
+                conflict = false;
+            } else if score == best_score && !same_rate(best, Some(price)) {
+                conflict = true;
+            }
+        }
+        if conflict {
+            None
+        } else {
+            best
+        }
     }
 }
 
@@ -188,4 +229,82 @@ fn json_f64(value: Option<&Value>) -> Option<f64> {
 
 fn normalize(model: &str) -> String {
     model.trim().to_ascii_lowercase()
+}
+
+fn tokens(model: &str) -> Vec<&str> {
+    model
+        .split(['-', '/'])
+        .filter(|part| !part.is_empty())
+        .collect()
+}
+
+fn is_variant_token(token: &str) -> bool {
+    let token = token.to_ascii_lowercase();
+    if token.len() >= 2 {
+        let (num, unit) = token.split_at(token.len() - 1);
+        if matches!(unit, "k" | "m") && !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()) {
+            return true;
+        }
+    }
+    if token.len() == 8 && token.chars().all(|c| c.is_ascii_digit()) {
+        return true;
+    }
+    matches!(
+        token.as_str(),
+        "latest" | "preview" | "beta" | "exp" | "experimental"
+    )
+}
+
+fn stripped_suffixes(key: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut current = key.to_string();
+    while let Some((head, tail)) = current.rsplit_once('-') {
+        if !is_variant_token(tail) {
+            break;
+        }
+        out.push(head.to_string());
+        if let Some((_, rest)) = head.rsplit_once('/') {
+            if rest != head {
+                out.push(rest.to_string());
+            }
+        }
+        current = head.to_string();
+    }
+    out
+}
+
+fn suffix_match_score(table_tokens: &[&str], query: &[&str]) -> Option<usize> {
+    if table_tokens.is_empty() || query.is_empty() {
+        return None;
+    }
+    let min = if table_tokens.len() == 1 { 1 } else { 2 };
+    for len in (min..=table_tokens.len()).rev() {
+        let suffix = &table_tokens[table_tokens.len() - len..];
+        if let Some(start) = find_contiguous(suffix, query) {
+            let after = &query[start + len..];
+            if after.iter().all(|token| is_variant_token(token)) {
+                return Some(len);
+            }
+        }
+    }
+    None
+}
+
+fn find_contiguous(needle: &[&str], haystack: &[&str]) -> Option<usize> {
+    if needle.is_empty() || needle.len() > haystack.len() {
+        return None;
+    }
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
+}
+
+fn same_rate(a: Option<&ModelPrice>, b: Option<&ModelPrice>) -> bool {
+    match (a, b) {
+        (Some(a), Some(b)) => {
+            a.prompt_per_token == b.prompt_per_token
+                && a.completion_per_token == b.completion_per_token
+        }
+        _ => false,
+    }
 }

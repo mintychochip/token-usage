@@ -20,6 +20,14 @@ fn openrouter_fixture() -> serde_json::Value {
             {
                 "id": "x-ai/grok-4.6",
                 "pricing": { "prompt": "0.000002", "completion": "0.000010" }
+            },
+            {
+                "id": "anthropic/claude-opus-5",
+                "pricing": { "prompt": "0.000005", "completion": "0.000025" }
+            },
+            {
+                "id": "anthropic/claude-opus-4",
+                "pricing": { "prompt": "0.000015", "completion": "0.000075" }
             }
         ]
     })
@@ -64,6 +72,56 @@ fn grok_alias_matches_openrouter_id() {
     let table = parse_openrouter_prices(&openrouter_fixture()).unwrap();
     let cost = estimate_cost_usd(&table, Some("grok-4.6"), &UsageCounts::new(1000, 0));
     assert_eq!(cost, Some(1000.0 * 0.000002));
+}
+
+#[test]
+fn context_window_suffix_resolves_to_base_model() {
+    let table = parse_openrouter_prices(&openrouter_fixture()).unwrap();
+    let counts = UsageCounts::new(1000, 0);
+    let opus5 = 1000.0 * 0.000005;
+    for host_id in [
+        "opus-5-1m",
+        "claude-opus-5-1m",
+        "anthropic/claude-opus-5-1m",
+        "opus-5-200k",
+        "OPUS-5-1M",
+    ] {
+        let cost = estimate_cost_usd(&table, Some(host_id), &counts);
+        assert_eq!(cost, Some(opus5), "{host_id} should price as opus-5");
+    }
+}
+
+#[test]
+fn variant_does_not_resolve_to_a_sibling_model() {
+    let table = parse_openrouter_prices(&openrouter_fixture()).unwrap();
+    let cost = estimate_cost_usd(&table, Some("opus-5-1m"), &UsageCounts::new(1000, 0));
+    assert_eq!(cost, Some(1000.0 * 0.000005));
+    assert_ne!(cost, Some(1000.0 * 0.000015));
+}
+
+#[test]
+fn exact_priced_variant_wins_over_the_base_model() {
+    let table = parse_openrouter_prices(&serde_json::json!({
+        "data": [
+            {
+                "id": "anthropic/claude-opus-5",
+                "pricing": { "prompt": "0.000005", "completion": "0.000025" }
+            },
+            {
+                "id": "anthropic/claude-opus-5-1m",
+                "pricing": { "prompt": "0.000010", "completion": "0.000040" }
+            }
+        ]
+    }))
+    .unwrap();
+    assert_eq!(
+        estimate_cost_usd(&table, Some("opus-5-1m"), &UsageCounts::new(1000, 0)),
+        Some(1000.0 * 0.000010)
+    );
+    assert_eq!(
+        estimate_cost_usd(&table, Some("opus-5"), &UsageCounts::new(1000, 0)),
+        Some(1000.0 * 0.000005)
+    );
 }
 
 #[test]
