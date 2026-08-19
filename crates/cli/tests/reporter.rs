@@ -151,3 +151,77 @@ fn first_ingest_syncs_every_historical_grok_session_then_the_hook() {
     assert!(sync_body.contains("grok"), "{sync_body}");
     assert!(sync_body.contains("last_synced_at"), "{sync_body}");
 }
+
+#[test]
+fn export_jsonl_round_trips_through_import_into_a_new_local_store() {
+    let dir = tempdir().unwrap();
+    let store = dir.path().join("store.json");
+    let empty_home = dir.path().join("home");
+    std::fs::create_dir_all(&empty_home).unwrap();
+    let fixture = format!(
+        "{}/../adapters/fixtures/hermes-session.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ingest = reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
+        .args(["ingest", "--adapter", "hermes", "--file", &fixture])
+        .output()
+        .unwrap();
+    assert!(
+        ingest.status.success(),
+        "{}",
+        String::from_utf8_lossy(&ingest.stderr)
+    );
+    let expected: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&fixture).unwrap()).unwrap();
+    let expected_input = expected["usage"]["input_tokens"].as_u64().unwrap();
+
+    let jsonl = dir.path().join("usage.jsonl");
+    let export = reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
+        .args(["export", "--file"])
+        .arg(&jsonl)
+        .output()
+        .unwrap();
+    assert!(
+        export.status.success(),
+        "{}",
+        String::from_utf8_lossy(&export.stderr)
+    );
+    let dumped = std::fs::read_to_string(&jsonl).unwrap();
+    assert!(dumped.contains("hermes-sess-1"), "{dumped}");
+
+    let other = dir.path().join("other.json");
+    let import = reporter()
+        .arg("--store")
+        .arg(&other)
+        .arg("--home")
+        .arg(&empty_home)
+        .args(["import", "--file"])
+        .arg(&jsonl)
+        .output()
+        .unwrap();
+    assert!(
+        import.status.success(),
+        "{}",
+        String::from_utf8_lossy(&import.stderr)
+    );
+    let get = reporter()
+        .arg("--store")
+        .arg(&other)
+        .arg("--home")
+        .arg(&empty_home)
+        .args(["get", "--harness", "hermes", "--session", "hermes-sess-1"])
+        .output()
+        .unwrap();
+    assert!(get.status.success());
+    let body = String::from_utf8_lossy(&get.stdout);
+    assert!(body.contains(&expected_input.to_string()), "{body}");
+    assert!(body.contains("hermes-sess-1"), "{body}");
+}

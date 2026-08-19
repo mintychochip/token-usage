@@ -46,6 +46,17 @@ enum Command {
     },
     /// List every stored identity.
     List,
+    /// Write every stored observation as JSONL (user-owned format).
+    Export {
+        /// Destination file; stdout when omitted.
+        #[arg(long)]
+        file: Option<PathBuf>,
+    },
+    /// Read JSONL observations into the local store.
+    Import {
+        #[arg(long)]
+        file: PathBuf,
+    },
     /// Scan existing harness session stores (all sessions, not just the active one).
     Sync {
         /// Limit the scan to one harness. Default: every named harness that needs first sync.
@@ -108,6 +119,35 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     return Err("not found".into());
                 }
             }
+        }
+        Command::Export { file } => {
+            let mut out = String::new();
+            for obs in store.list()? {
+                let wire = WireObservation::from_observation(&obs);
+                out.push_str(&serde_json::to_string(&wire)?);
+                out.push('\n');
+            }
+            match file {
+                Some(path) => std::fs::write(path, out)?,
+                None => print!("{out}"),
+            }
+        }
+        Command::Import { file } => {
+            let raw = std::fs::read_to_string(file)?;
+            for line in raw.lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                let wire: WireObservation = serde_json::from_str(line)?;
+                store.ingest(wire.into_observation()?)?;
+            }
+            let sessions: Vec<_> = store
+                .list()?
+                .iter()
+                .map(WireObservation::from_observation)
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&sessions)?);
         }
         Command::List => {
             if store.list_harness_syncs()?.is_empty() {
