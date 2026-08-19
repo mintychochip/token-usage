@@ -17,6 +17,8 @@ pub struct WireObservation {
     pub extras: ExtraCounts,
     pub source: ObservationSource,
     pub completeness: SessionStoreCompleteness,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_synced_at: Option<u64>,
 }
 
 impl WireObservation {
@@ -30,17 +32,22 @@ impl WireObservation {
             extras: obs.counts().extras().clone(),
             source: obs.source(),
             completeness: obs.completeness(),
+            last_synced_at: obs.last_synced_at(),
         }
     }
 
     /// Parse a wire body into a domain observation.
     pub fn into_observation(self) -> Result<UsageObservation, DomainError> {
-        Ok(UsageObservation::new(
+        let mut obs = UsageObservation::new(
             ObservationIdentity::new(self.harness, SessionId::parse(self.session_id)?),
             UsageCounts::new(self.input_tokens, self.output_tokens).with_extras(self.extras),
             self.source,
             self.completeness,
-        ))
+        );
+        if let Some(at) = self.last_synced_at {
+            obs = obs.with_last_synced_at(at);
+        }
+        Ok(obs)
     }
 }
 
@@ -48,4 +55,25 @@ impl WireObservation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WireSessionList {
     pub sessions: Vec<WireObservation>,
+}
+
+/// Per-harness scan timestamp.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WireHarnessSync {
+    pub harness: Harness,
+    pub last_synced_at: u64,
+}
+
+/// Envelope for GET /v1/sync.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WireSyncStatus {
+    pub harnesses: Vec<WireHarnessSync>,
+}
+
+/// Body for POST /v1/sync.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct WireSyncRequest {
+    pub harness: Option<String>,
+    pub force: bool,
 }

@@ -18,9 +18,13 @@ fn reporter_ingest_then_get_returns_fixture_counts() {
         env!("CARGO_MANIFEST_DIR")
     );
 
+    let empty_home = dir.path().join("home");
+    std::fs::create_dir_all(&empty_home).unwrap();
     let ingest = reporter()
         .arg("--store")
         .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
         .args(["ingest", "--adapter", "claude-code", "--file", &fixture])
         .output()
         .unwrap();
@@ -37,6 +41,8 @@ fn reporter_ingest_then_get_returns_fixture_counts() {
     let get = reporter()
         .arg("--store")
         .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
         .args(["get", "--harness", "claude-code", "--session", "cc-sess-1"])
         .output()
         .unwrap();
@@ -57,9 +63,13 @@ fn reporter_reads_stdin_for_plugin_hooks() {
     ))
     .unwrap();
 
+    let empty_home = dir.path().join("home");
+    std::fs::create_dir_all(&empty_home).unwrap();
     let mut child = reporter()
         .arg("--store")
         .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
         .args(["ingest", "--adapter", "jcode"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -81,4 +91,63 @@ fn reporter_reads_stdin_for_plugin_hooks() {
     let body = String::from_utf8_lossy(&out.stdout);
     assert!(body.contains("4200"), "{body}");
     assert!(body.contains("900"), "{body}");
+}
+
+#[test]
+fn first_ingest_syncs_every_historical_grok_session_then_the_hook() {
+    let dir = tempdir().unwrap();
+    let store = dir.path().join("store.json");
+    let home = format!("{}/../sync/fixtures/home", env!("CARGO_MANIFEST_DIR"));
+    let fixture = format!(
+        "{}/../adapters/fixtures/grok-partial.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+
+    let ingest = reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&home)
+        .args(["ingest", "--adapter", "grok", "--file", &fixture])
+        .output()
+        .unwrap();
+    assert!(
+        ingest.status.success(),
+        "{}",
+        String::from_utf8_lossy(&ingest.stderr)
+    );
+    let posted = String::from_utf8_lossy(&ingest.stdout);
+    assert!(posted.contains("last_synced_at"), "{posted}");
+
+    let list = reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&home)
+        .arg("list")
+        .output()
+        .unwrap();
+    assert!(list.status.success());
+    let body = String::from_utf8_lossy(&list.stdout);
+    assert!(body.contains("sess-alpha"), "{body}");
+    assert!(body.contains("sess-beta"), "{body}");
+    assert!(
+        body.contains("019f8886-1253-75f1-98e3-8ab6896f3296"),
+        "{body}"
+    );
+    assert!(body.contains("1111"), "{body}");
+    assert!(body.contains("2222"), "{body}");
+
+    let status = reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&home)
+        .args(["sync", "--harness", "grok"])
+        .output()
+        .unwrap();
+    assert!(status.status.success());
+    let sync_body = String::from_utf8_lossy(&status.stdout);
+    assert!(sync_body.contains("grok"), "{sync_body}");
+    assert!(sync_body.contains("last_synced_at"), "{sync_body}");
 }

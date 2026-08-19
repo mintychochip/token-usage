@@ -5,9 +5,10 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use token_usage_adapters::adapt;
-use token_usage_cli::WireObservation;
+use token_usage_cli::{WireHarnessSync, WireObservation, WireSyncStatus};
 use token_usage_domain::{Harness, ObservationIdentity, SessionId};
 use token_usage_store::FileStore;
+use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 
 #[derive(Parser)]
 #[command(
@@ -18,6 +19,9 @@ struct Cli {
     /// Path to the durable store (JSON file).
     #[arg(long, env = "TOKEN_USAGE_STORE", global = true)]
     store: Option<PathBuf>,
+    /// Root that contains `.grok`, `.pi`, `.omp`, and other harness dirs.
+    #[arg(long, env = "TOKEN_USAGE_HARNESS_HOME", global = true)]
+    home: Option<PathBuf>,
     #[command(subcommand)]
     command: Command,
 }
@@ -42,6 +46,15 @@ enum Command {
     },
     /// List every stored identity.
     List,
+    /// Scan existing harness session stores (all sessions, not just the active one).
+    Sync {
+        /// Limit the scan to one harness. Default: every named harness that needs first sync.
+        #[arg(long)]
+        harness: Option<String>,
+        /// Scan even if this harness was synced before.
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 fn main() {
@@ -55,9 +68,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let store_path = cli.store.unwrap_or_else(default_store_path);
     let store = FileStore::open(store_path)?;
+    let roots = cli
+        .home
+        .map(|home| SyncRoots { home })
+        .unwrap_or_else(SyncRoots::from_env);
     match cli.command {
         Command::Ingest { adapter, file } => {
             let harness = Harness::parse(&adapter)?;
+            if store.needs_first_sync(harness)? {
+                sync_harness(&store, harness, &roots, unix_now())?;
+            }
             let raw = match file {
                 Some(path) => std::fs::read_to_string(path)?,
                 None => {
@@ -90,6 +110,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Command::List => {
+            if store.list_harness_syncs()?.is_empty() {
+                sync_all_needed(&store, &roots, unix_now())?;
+            }
             let sessions: Vec<_> = store
                 .list()?
                 .iter()
@@ -97,8 +120,39 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .collect();
             println!("{}", serde_json::to_string_pretty(&sessions)?);
         }
+        Command::Sync { harness, force } => {
+            let now = unix_now();
+            if let Some(name) = harness {
+                let harness = Harness::parse(&name)?;
+                if force || store.needs_first_sync(harness)? {
+                    sync_harness(&store, harness, &roots, now)?;
+                }
+            } else if force {
+                sync_all(&store, &roots, now)?;
+            } else {
+                sync_all_needed(&store, &roots, now)?;
+            }
+            let status = WireSyncStatus {
+                harnesses: store
+                    .list_harness_syncs()?
+                    .into_iter()
+                    .map(|row| WireHarnessSync {
+                        harness: row.harness,
+                        last_synced_at: row.last_synced_at,
+                    })
+                    .collect(),
+            };
+            println!("{}", serde_json::to_string_pretty(&status)?);
+        }
     }
     Ok(())
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 fn default_store_path() -> PathBuf {

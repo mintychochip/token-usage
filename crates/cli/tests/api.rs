@@ -15,6 +15,7 @@ use token_usage_domain::{
     SessionStoreCompleteness, UsageCounts, UsageObservation,
 };
 use token_usage_store::FileStore;
+use token_usage_sync::SyncRoots;
 use tower::ServiceExt;
 
 fn sample_obs() -> UsageObservation {
@@ -34,7 +35,9 @@ fn sample_obs() -> UsageObservation {
 async fn router_post_then_get_returns_submitted_counts() {
     let dir = tempdir().unwrap();
     let store = FileStore::open(dir.path().join("store.json")).unwrap();
-    let router = app(ApiState::new(store));
+    let empty_home = dir.path().join("home");
+    std::fs::create_dir_all(&empty_home).unwrap();
+    let router = app(ApiState::with_roots(store, SyncRoots { home: empty_home }));
     let wire = WireObservation::from_observation(&sample_obs());
     let body = serde_json::to_vec(&wire).unwrap();
 
@@ -71,6 +74,7 @@ async fn router_post_then_get_returns_submitted_counts() {
     assert_eq!(got.output_tokens, 1100);
     assert_eq!(got.session_id, "thr_api");
     assert_eq!(got.source, ObservationSource::PluginReport);
+    assert!(got.last_synced_at.is_some());
 }
 
 #[test]
@@ -103,9 +107,12 @@ fn api_binary_roundtrip_returns_submitted_identity_and_counts() {
 
 fn spawn_api(store: &std::path::Path) -> std::process::Child {
     let bin = env!("CARGO_BIN_EXE_token-usage-api");
+    let home = store.parent().unwrap().join("harness-home");
+    std::fs::create_dir_all(&home).unwrap();
     let mut child = Command::new(bin)
         .env("TOKEN_USAGE_STORE", store)
         .env("TOKEN_USAGE_BIND", "127.0.0.1:0")
+        .env("TOKEN_USAGE_HARNESS_HOME", &home)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
