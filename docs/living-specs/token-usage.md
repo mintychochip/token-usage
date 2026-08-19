@@ -28,6 +28,8 @@ queryable together.
 - Thin Rust HTTP API and a reporter CLI that plugins exec
 - Adapters for representative harness payloads
 - Host-native wrappers (hooks/manifests/scripts) that invoke the reporter
+- First-use scan of existing harness session stores (all discoverable sessions, not only the active one)
+- Last-synced timestamps per observation and per harness
 
 ### Out of scope / non-goals
 
@@ -54,6 +56,10 @@ queryable together.
 - Adapters only translate payloads. They do not persist. The store is the
   single write path.
 - Host wrappers exec the Rust reporter; they do not re-implement ingest.
+- The store records `last_synced_at` on every ingest and a per-harness scan time.
+- The first ingest/list/sync for a harness walks that host's on-disk sessions and
+  ingest each mapped payload. Later reports do not rescan unless `--force`.
+- Scanners must not invent token counts. Unreadable or unmapped files are skipped.
 
 ## Implementation guidance
 
@@ -78,6 +84,7 @@ queryable together.
 - [x] Host-native plugin/hook wrappers that call the reporter
 - [x] Hermes Agent, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi adapters
 - [x] `scripts/install.sh` and `scripts/update.sh` prefix installs
+- [x] First-use sync of existing harness sessions plus `last_synced_at`
 
 ## Next
 
@@ -99,6 +106,7 @@ queryable together.
 | 2026-08-19 | Grok session fragments are partial/unknown | Grok Build may not expose a complete session store |
 | 2026-08-19 | Global approximations use reserved `__harness_global__` when the payload has no session | `source` still distinguishes plugin vs global; a real session id is allowed if the host supplies one |
 | 2026-08-19 | Expand named harnesses to include Hermes, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi | Same class of coding-agent hosts with plugin/hook or usage-dump surfaces |
+| 2026-08-19 | First ingest/list scans all discoverable host sessions; stamp last_synced_at | Users already have history in Grok/Pi/omp/Codex stores; hooks only see the active session |
 
 ## Open questions
 

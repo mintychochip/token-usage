@@ -42,7 +42,20 @@ TOKEN_USAGE_STORE=./store.json cargo run -p token-usage-cli --bin token-usage-re
 ```
 
 `POST /v1/observations` accepts a canonical observation.  
-`POST /v1/ingest/{harness}` accepts a raw host payload.
+`POST /v1/ingest/{harness}` accepts a raw host payload.  
+`POST /v1/sync` scans existing host session files (not just the active session).  
+`GET /v1/sync` returns per-harness `last_synced_at`.
+
+On first ingest or `list` for a harness, the reporter walks that host's on-disk
+sessions (Grok `signals.json`, Pi/oh-my-pi JSONL, Codex/Claude JSONL, and other
+JSON trees under the harness home) and stores each mapped session. Point
+`--home` / `TOKEN_USAGE_HARNESS_HOME` at the directory that contains `.grok`,
+`.pi`, `.omp`, and friends.
+
+```bash
+token-usage-reporter sync --harness grok
+token-usage-reporter sync --force
+```
 
 ## Harnesses
 

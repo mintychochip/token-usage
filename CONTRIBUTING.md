@@ -29,6 +29,7 @@ the reporter would persist as user config.
 | `crates/cli` | `token-usage-api` and `token-usage-reporter`. |
 | `plugins/<harness>` | Host-native hooks/manifests. Scripts only exec the reporter. |
 | `scripts/` | `install.sh` and `update.sh` for prefix installs. |
+| `crates/sync` | Walk existing host session stores; first-use ingest. |
 | `docs/living-specs/` | Design intent and feature horizons. |
 
 ## How to add a harness
