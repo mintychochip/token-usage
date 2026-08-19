@@ -90,12 +90,15 @@ queryable together.
 
 - [ ] Optional sync against a harness's own global `/usage` snapshot on a timer
 - [ ] Compaction-aware extra counts (tokens before/after compact)
+- [ ] Reporter POST of WireObservation to a remote `token-usage-api` (plugins stay exec-only)
 
 ## Future
 
 - [ ] Billing/pricing tables and a usage TUI
 - [ ] Multi-machine replication
 - [ ] Auth and multi-user tenancy
+- [ ] Object-store PUT per identity (fallback if no always-on HTTP)
+- [ ] Append-only JSONL audit log reduced by identity
 
 ## Decisions log
 
@@ -107,6 +110,7 @@ queryable together.
 | 2026-08-19 | Global approximations use reserved `__harness_global__` when the payload has no session | `source` still distinguishes plugin vs global; a real session id is allowed if the host supplies one |
 | 2026-08-19 | Expand named harnesses to include Hermes, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi | Same class of coding-agent hosts with plugin/hook or usage-dump surfaces |
 | 2026-08-19 | First ingest/list scans all discoverable host sessions; stamp last_synced_at | Users already have history in Grok/Pi/omp/Codex stores; hooks only see the active session |
+| 2026-08-19 | Remote format: HTTP POST of existing WireObservation; plugins stay `exec token-usage-reporter ingest` | FileStore is the state to front, not hook JSON; no new domain. See docs/remote-format.md |
 
 ## Open questions
 
