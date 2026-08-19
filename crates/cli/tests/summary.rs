@@ -69,3 +69,38 @@ fn summary_adds_sessions_per_harness_and_omits_session_ids() {
     assert_eq!(badge.schema_version, 1);
     assert!(badge.message.contains("157") || badge.message.contains("in"));
 }
+
+#[test]
+fn summary_skips_global_approximation_when_session_reports_exist() {
+    let dir = tempdir().unwrap();
+    let store = FileStore::open(dir.path().join("store.json")).unwrap();
+    store
+        .ingest_at(
+            UsageObservation::new(
+                ObservationIdentity::new(Harness::Hermes, SessionId::parse("sess").unwrap()),
+                UsageCounts::new(18000, 2200),
+                ObservationSource::PluginReport,
+                SessionStoreCompleteness::Complete,
+            )
+            .with_model("anthropic/claude-sonnet-4.6"),
+            10,
+        )
+        .unwrap();
+    store
+        .ingest_at(
+            UsageObservation::new(
+                ObservationIdentity::new(Harness::Hermes, SessionId::harness_global()),
+                UsageCounts::new(18000, 2200),
+                ObservationSource::HarnessGlobalApproximation,
+                SessionStoreCompleteness::Partial,
+            )
+            .with_model("anthropic/claude-sonnet-4.6"),
+            11,
+        )
+        .unwrap();
+
+    let summary = summarize(&store.list().unwrap(), 1);
+    assert_eq!(summary.input_tokens, 18000);
+    assert_eq!(summary.output_tokens, 2200);
+    assert_eq!(summary.harnesses[0].sessions, 1);
+}

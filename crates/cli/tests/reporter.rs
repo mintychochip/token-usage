@@ -324,6 +324,7 @@ fn export_summary_is_chartable_and_has_no_session_ids() {
 
     let summary_path = dir.path().join("usage-summary.json");
     let export = reporter()
+        .env("TOKEN_USAGE_PRICES_FETCH", "0")
         .arg("--store")
         .arg(&store)
         .arg("--home")
@@ -344,4 +345,60 @@ fn export_summary_is_chartable_and_has_no_session_ids() {
     assert!(summary["harnesses"].as_array().unwrap().iter().any(|h| {
         h["harness"] == "hermes" && h["input_tokens"].as_u64() == Some(expected_input)
     }));
+}
+
+#[test]
+fn export_summary_estimates_cost_from_internal_price_file() {
+    let dir = tempdir().unwrap();
+    let store = dir.path().join("store.json");
+    let empty_home = dir.path().join("home");
+    std::fs::create_dir_all(&empty_home).unwrap();
+    let fixture = format!(
+        "{}/../adapters/fixtures/hermes-session.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let payload: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&fixture).unwrap()).unwrap();
+    let expected_input = payload["usage"]["input_tokens"].as_u64().unwrap();
+    let expected_output = payload["usage"]["output_tokens"].as_u64().unwrap();
+    reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
+        .args(["ingest", "--adapter", "hermes", "--file", &fixture])
+        .output()
+        .unwrap();
+
+    let prices = dir.path().join("prices.json");
+    std::fs::write(
+        &prices,
+        r#"{"data":[{"id":"anthropic/claude-sonnet-4.6","pricing":{"prompt":"0.000003","completion":"0.000015"}}]}"#,
+    )
+    .unwrap();
+    let summary_path = dir.path().join("usage-summary.json");
+    let export = reporter()
+        .env("TOKEN_USAGE_PRICES", &prices)
+        .env("TOKEN_USAGE_PRICES_FETCH", "0")
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
+        .args(["export", "--format", "summary", "--file"])
+        .arg(&summary_path)
+        .output()
+        .unwrap();
+    assert!(
+        export.status.success(),
+        "{}",
+        String::from_utf8_lossy(&export.stderr)
+    );
+    let summary: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&summary_path).unwrap()).unwrap();
+    let cost = summary["estimated_cost_usd"].as_f64().expect("cost");
+    let expected = expected_input as f64 * 0.000003 + expected_output as f64 * 0.000015;
+    assert!(
+        (cost - expected).abs() < 1e-12,
+        "cost {cost} != {expected} from fixture + internal table"
+    );
 }

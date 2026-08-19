@@ -7,7 +7,8 @@ use clap::{Parser, Subcommand};
 use token_usage_adapters::adapt;
 use token_usage_cli::{
     bundle_from_store, load_github_config, pull_dir, pull_gist, push_gist, save_github_config,
-    shields_badge, summarize, write_bundle, WireHarnessSync, WireObservation, WireSyncStatus,
+    shields_badge, summarize_priced, write_bundle, WireHarnessSync, WireObservation,
+    WireSyncStatus,
 };
 use token_usage_domain::{Harness, ObservationIdentity, SessionId};
 use token_usage_store::FileStore;
@@ -163,11 +164,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     buf
                 }
                 "summary" => {
-                    let summary = summarize(&listed, unix_now());
+                    let prices = token_usage_cli::load_price_table(&store_path);
+                    let summary = summarize_priced(&listed, unix_now(), prices.as_ref());
                     format!("{}\n", serde_json::to_string_pretty(&summary)?)
                 }
                 "shields" => {
-                    let badge = shields_badge(&summarize(&listed, unix_now()));
+                    let prices = token_usage_cli::load_price_table(&store_path);
+                    let badge =
+                        shields_badge(&summarize_priced(&listed, unix_now(), prices.as_ref()));
                     format!("{}\n", serde_json::to_string_pretty(&badge)?)
                 }
                 other => return Err(format!("unknown export format: {other}").into()),

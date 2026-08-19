@@ -28,6 +28,7 @@ token-usage-adapters.workspace = true
 token-usage-domain.workspace = true
 token-usage-store.workspace = true
 token-usage-sync.workspace = true
+ureq.workspace = true
 
 [dev-dependencies]
 http-body-util.workspace = true

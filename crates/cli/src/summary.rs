@@ -1,7 +1,9 @@
 //! Chart- and gist-friendly rollups of stored observations.
 
 use serde::{Deserialize, Serialize};
-use token_usage_domain::{Harness, UsageObservation};
+use token_usage_domain::{Harness, ObservationSource, UsageObservation};
+
+use crate::pricing::{estimate_cost_usd, PriceTable};
 
 /// Totals for one harness across every stored session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -15,12 +17,15 @@ pub struct HarnessTotals {
 }
 
 /// Public snapshot someone can commit, gist, or chart. No session ids.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsageSummary {
     pub generated_at: u64,
     pub harnesses: Vec<HarnessTotals>,
     pub input_tokens: u64,
     pub output_tokens: u64,
+    /// Derived from host model + internal price table. Omitted when unknown.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
 }
 
 /// shields.io endpoint badge JSON.
@@ -34,8 +39,18 @@ pub struct ShieldsBadge {
 
 /// Roll up observations by harness. Session ids are omitted for public gists.
 pub fn summarize(observations: &[UsageObservation], generated_at: u64) -> UsageSummary {
+    summarize_priced(observations, generated_at, None)
+}
+
+/// Same rollup, with USD estimates when a price table is available.
+pub fn summarize_priced(
+    observations: &[UsageObservation],
+    generated_at: u64,
+    prices: Option<&PriceTable>,
+) -> UsageSummary {
+    let selected: Vec<&UsageObservation> = observations_for_summary(observations);
     let mut rows: Vec<HarnessTotals> = Vec::new();
-    for obs in observations {
+    for obs in &selected {
         let harness = obs.identity().harness();
         if let Some(row) = rows.iter_mut().find(|row| row.harness == harness) {
             row.sessions += 1;
@@ -55,12 +70,43 @@ pub fn summarize(observations: &[UsageObservation], generated_at: u64) -> UsageS
     rows.sort_by_key(|row| row.harness.as_str().to_string());
     let input_tokens = rows.iter().map(|r| r.input_tokens).sum();
     let output_tokens = rows.iter().map(|r| r.output_tokens).sum();
+    let estimated_cost_usd = prices.and_then(|table| {
+        let mut total = 0.0;
+        let mut any = false;
+        for obs in &selected {
+            if let Some(cost) = estimate_cost_usd(table, obs.model(), obs.counts()) {
+                total += cost;
+                any = true;
+            }
+        }
+        any.then_some(total)
+    });
     UsageSummary {
         generated_at,
         harnesses: rows,
         input_tokens,
         output_tokens,
+        estimated_cost_usd,
     }
+}
+
+fn observations_for_summary(observations: &[UsageObservation]) -> Vec<&UsageObservation> {
+    let mut has_plugin = Vec::new();
+    for obs in observations {
+        if obs.source() == ObservationSource::PluginReport {
+            let harness = obs.identity().harness();
+            if !has_plugin.contains(&harness) {
+                has_plugin.push(harness);
+            }
+        }
+    }
+    observations
+        .iter()
+        .filter(|obs| {
+            obs.source() != ObservationSource::HarnessGlobalApproximation
+                || !has_plugin.contains(&obs.identity().harness())
+        })
+        .collect()
 }
 
 /// Compact badge for README shields.io custom endpoints.
