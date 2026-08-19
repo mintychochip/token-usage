@@ -21,10 +21,10 @@ pub use wire::{
     WireHarnessSync, WireObservation, WireSessionList, WireSyncRequest, WireSyncStatus,
 };
 
-/// Shared API state: one file-backed store.
+/// Shared API state. `store` is `None` for a hosted adapt-only process.
 #[derive(Clone)]
 pub struct ApiState {
-    store: Arc<FileStore>,
+    store: Option<Arc<FileStore>>,
     roots: SyncRoots,
 }
 
@@ -32,7 +32,7 @@ impl ApiState {
     /// Wrap an opened store. Harness files are read from `TOKEN_USAGE_HARNESS_HOME` or `$HOME`.
     pub fn new(store: FileStore) -> Self {
         Self {
-            store: Arc::new(store),
+            store: Some(Arc::new(store)),
             roots: SyncRoots::from_env(),
         }
     }
@@ -40,8 +40,16 @@ impl ApiState {
     /// Wrap a store with an explicit harness-home root (tests).
     pub fn with_roots(store: FileStore, roots: SyncRoots) -> Self {
         Self {
-            store: Arc::new(store),
+            store: Some(Arc::new(store)),
             roots,
+        }
+    }
+
+    /// Hosted mode: adapt and validate only. Nothing is written.
+    pub fn stateless() -> Self {
+        Self {
+            store: None,
+            roots: SyncRoots::from_env(),
         }
     }
 }
@@ -50,6 +58,7 @@ impl ApiState {
 pub fn app(state: ApiState) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/v1/adapt/{harness}", post(post_adapt))
         .route("/v1/observations", post(post_observation))
         .route("/v1/ingest/{harness}", post(post_ingest))
         .route("/v1/sessions", get(list_sessions))
@@ -68,8 +77,29 @@ pub async fn serve(store_path: PathBuf, addr: SocketAddr) -> Result<(), std::io:
     axum::serve(listener, app(ApiState::new(store))).await
 }
 
+/// Bind and serve an API that never opens a store file.
+pub async fn serve_stateless(addr: SocketAddr) -> Result<(), std::io::Error> {
+    let listener = TcpListener::bind(addr).await?;
+    let bound = listener.local_addr()?;
+    println!("listening on {bound} (stateless, no store)");
+    let _ = std::io::Write::flush(&mut std::io::stdout());
+    axum::serve(listener, app(ApiState::stateless())).await
+}
+
 async fn health() -> &'static str {
     "ok"
+}
+
+async fn post_adapt(
+    Path(harness): Path<String>,
+    Json(payload): Json<Value>,
+) -> Result<(StatusCode, Json<WireObservation>), ApiError> {
+    let harness = Harness::parse(&harness).map_err(ApiError::from)?;
+    let observation = adapt(harness, &payload).map_err(ApiError::from)?;
+    Ok((
+        StatusCode::OK,
+        Json(WireObservation::from_observation(&observation)),
+    ))
 }
 
 async fn post_observation(
@@ -77,8 +107,14 @@ async fn post_observation(
     Json(body): Json<WireObservation>,
 ) -> Result<(StatusCode, Json<WireObservation>), ApiError> {
     let observation = body.into_observation().map_err(ApiError::from)?;
+    let Some(store) = state.store.as_ref() else {
+        return Ok((
+            StatusCode::OK,
+            Json(WireObservation::from_observation(&observation)),
+        ));
+    };
     maybe_first_sync(&state, observation.identity().harness())?;
-    let stored = state.store.ingest(observation)?;
+    let stored = store.ingest(observation)?;
     Ok((
         StatusCode::OK,
         Json(WireObservation::from_observation(&stored)),
@@ -91,9 +127,15 @@ async fn post_ingest(
     Json(payload): Json<Value>,
 ) -> Result<(StatusCode, Json<WireObservation>), ApiError> {
     let harness = Harness::parse(&harness).map_err(ApiError::from)?;
-    maybe_first_sync(&state, harness)?;
     let observation = adapt(harness, &payload).map_err(ApiError::from)?;
-    let stored = state.store.ingest(observation)?;
+    let Some(store) = state.store.as_ref() else {
+        return Ok((
+            StatusCode::OK,
+            Json(WireObservation::from_observation(&observation)),
+        ));
+    };
+    maybe_first_sync(&state, harness)?;
+    let stored = store.ingest(observation)?;
     Ok((
         StatusCode::OK,
         Json(WireObservation::from_observation(&stored)),
@@ -108,16 +150,17 @@ async fn get_session(
         Harness::parse(&harness).map_err(ApiError::from)?,
         SessionId::parse(session_id).map_err(ApiError::from)?,
     );
-    match state.store.get(&identity)? {
+    let store = state.store.as_ref().ok_or(ApiError::Stateless)?;
+    match store.get(&identity)? {
         Some(obs) => Ok(Json(WireObservation::from_observation(&obs))),
         None => Err(ApiError::NotFound),
     }
 }
 
 async fn list_sessions(State(state): State<ApiState>) -> Result<Json<WireSessionList>, ApiError> {
+    let store = state.store.as_ref().ok_or(ApiError::Stateless)?;
     maybe_first_sync_all(&state)?;
-    let sessions = state
-        .store
+    let sessions = store
         .list()?
         .iter()
         .map(WireObservation::from_observation)
@@ -126,8 +169,8 @@ async fn list_sessions(State(state): State<ApiState>) -> Result<Json<WireSession
 }
 
 async fn get_sync(State(state): State<ApiState>) -> Result<Json<WireSyncStatus>, ApiError> {
-    let harnesses = state
-        .store
+    let store = state.store.as_ref().ok_or(ApiError::Stateless)?;
+    let harnesses = store
         .list_harness_syncs()?
         .into_iter()
         .map(|row| WireHarnessSync {
@@ -145,27 +188,36 @@ async fn post_sync(
     let now = unix_now();
     if let Some(name) = body.harness {
         let harness = Harness::parse(&name).map_err(ApiError::from)?;
-        if body.force || state.store.needs_first_sync(harness)? {
-            sync_harness(&state.store, harness, &state.roots, now)?;
+        let store = state.store.as_ref().ok_or(ApiError::Stateless)?;
+        if body.force || store.needs_first_sync(harness)? {
+            sync_harness(store, harness, &state.roots, now)?;
         }
     } else if body.force {
-        sync_all(&state.store, &state.roots, now)?;
+        let store = state.store.as_ref().ok_or(ApiError::Stateless)?;
+        sync_all(store, &state.roots, now)?;
     } else {
-        sync_all_needed(&state.store, &state.roots, now)?;
+        let store = state.store.as_ref().ok_or(ApiError::Stateless)?;
+        sync_all_needed(store, &state.roots, now)?;
     }
     get_sync(State(state)).await
 }
 
 fn maybe_first_sync(state: &ApiState, harness: Harness) -> Result<(), ApiError> {
-    if state.store.needs_first_sync(harness)? {
-        sync_harness(&state.store, harness, &state.roots, unix_now())?;
+    let Some(store) = state.store.as_ref() else {
+        return Ok(());
+    };
+    if store.needs_first_sync(harness)? {
+        sync_harness(store, harness, &state.roots, unix_now())?;
     }
     Ok(())
 }
 
 fn maybe_first_sync_all(state: &ApiState) -> Result<(), ApiError> {
-    if state.store.list_harness_syncs()?.is_empty() {
-        sync_all_needed(&state.store, &state.roots, unix_now())?;
+    let Some(store) = state.store.as_ref() else {
+        return Ok(());
+    };
+    if store.list_harness_syncs()?.is_empty() {
+        sync_all_needed(store, &state.roots, unix_now())?;
     }
     Ok(())
 }
@@ -182,6 +234,7 @@ fn unix_now() -> u64 {
 pub enum ApiError {
     BadRequest(String),
     NotFound,
+    Stateless,
     Internal(String),
 }
 
@@ -214,6 +267,10 @@ impl axum::response::IntoResponse for ApiError {
         let (status, message) = match self {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
             ApiError::NotFound => (StatusCode::NOT_FOUND, "not found".to_string()),
+            ApiError::Stateless => (
+                StatusCode::NOT_IMPLEMENTED,
+                "stateless api: no store".to_string(),
+            ),
             ApiError::Internal(message) => (StatusCode::INTERNAL_SERVER_ERROR, message),
         };
         (status, message).into_response()

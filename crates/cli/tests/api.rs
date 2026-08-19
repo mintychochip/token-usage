@@ -77,6 +77,52 @@ async fn router_post_then_get_returns_submitted_counts() {
     assert!(got.last_synced_at.is_some());
 }
 
+#[tokio::test]
+async fn stateless_adapt_returns_fixture_counts_and_does_not_create_a_store() {
+    let dir = tempdir().unwrap();
+    let store_path = dir.path().join("must-not-exist.json");
+    let router = app(ApiState::stateless());
+    let fixture = std::fs::read_to_string(format!(
+        "{}/../adapters/fixtures/grok-partial.json",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+    let expected_input: u64 = serde_json::from_str::<serde_json::Value>(&fixture).unwrap()
+        ["contextTokensUsed"]
+        .as_u64()
+        .unwrap();
+
+    let post = router
+        .clone()
+        .oneshot(
+            Request::post("/v1/adapt/grok")
+                .header("content-type", "application/json")
+                .body(Body::from(fixture))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(post.status(), StatusCode::OK);
+    let posted: WireObservation =
+        serde_json::from_slice(&post.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(posted.input_tokens, expected_input);
+    assert_eq!(posted.harness, Harness::Grok);
+    assert!(
+        !store_path.exists(),
+        "stateless adapt must not write a store"
+    );
+
+    let get = router
+        .oneshot(
+            Request::get("/v1/sessions/grok/anything")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(get.status(), StatusCode::NOT_IMPLEMENTED);
+}
+
 #[test]
 fn api_binary_roundtrip_returns_submitted_identity_and_counts() {
     let dir = tempdir().unwrap();
