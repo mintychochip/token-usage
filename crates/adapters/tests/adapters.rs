@@ -118,6 +118,24 @@ fn grok_signals_fragment_is_partial_or_unknown() {
 }
 
 #[test]
+fn grok_compaction_extras_preserve_host_before_and_after() {
+    let payload = fixture("grok-compacted.json");
+    let loaded = ingest_and_reload(Harness::Grok, &payload);
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        payload["contextTokensUsed"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().extras().tokens_before,
+        payload["totalTokensBeforeCompaction"].as_u64()
+    );
+    assert_eq!(
+        loaded.counts().extras().tokens_after,
+        payload["contextTokensUsed"].as_u64()
+    );
+}
+
+#[test]
 fn oh_my_pi_session_stats_preserve_fixture_counts() {
     let payload = fixture("oh-my-pi-session.json");
     let loaded = ingest_and_reload(Harness::OhMyPi, &payload);

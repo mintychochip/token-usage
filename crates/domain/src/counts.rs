@@ -14,12 +14,22 @@ pub struct ExtraCounts {
     /// Reasoning / thinking tokens, when the host reports them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<u64>,
+    /// Tokens the host reported immediately before a compact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens_before: Option<u64>,
+    /// Tokens the host reported immediately after a compact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens_after: Option<u64>,
 }
 
 impl ExtraCounts {
     /// True when no extra count is present.
     pub fn is_empty(&self) -> bool {
-        self.cache_read.is_none() && self.cache_write.is_none() && self.reasoning.is_none()
+        self.cache_read.is_none()
+            && self.cache_write.is_none()
+            && self.reasoning.is_none()
+            && self.tokens_before.is_none()
+            && self.tokens_after.is_none()
     }
 }
 

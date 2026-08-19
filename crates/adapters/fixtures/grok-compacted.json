@@ -1,0 +1,7 @@
+{
+  "sessionId": "grok-compact-1",
+  "contextTokensUsed": 78914,
+  "contextWindowTokens": 500000,
+  "compactionCount": 2,
+  "totalTokensBeforeCompaction": 800287
+}

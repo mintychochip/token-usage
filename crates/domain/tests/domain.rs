@@ -94,6 +94,7 @@ fn observation_carries_counts_source_and_completeness() {
             cache_read: Some(80),
             cache_write: Some(12),
             reasoning: Some(50),
+            ..ExtraCounts::default()
         }),
         ObservationSource::PluginReport,
         SessionStoreCompleteness::Complete,
@@ -118,6 +119,8 @@ fn extra_counts_are_optional() {
     assert_eq!(counts.extras().cache_read, None);
     assert_eq!(counts.extras().cache_write, None);
     assert_eq!(counts.extras().reasoning, None);
+    assert_eq!(counts.extras().tokens_before, None);
+    assert_eq!(counts.extras().tokens_after, None);
 }
 
 #[test]

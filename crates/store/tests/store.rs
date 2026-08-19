@@ -25,6 +25,7 @@ fn observation(
             cache_read: Some(7),
             cache_write: None,
             reasoning: None,
+            ..ExtraCounts::default()
         }),
         source,
         completeness,

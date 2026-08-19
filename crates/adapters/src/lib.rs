@@ -249,10 +249,16 @@ fn grok_context_counts(
 ) -> Result<(UsageCounts, SessionStoreCompleteness), AdaptError> {
     let input = first_u64(payload, &["contextTokensUsed", "context_tokens_used"])
         .ok_or(AdaptError::MissingCounts)?;
-    Ok((
-        UsageCounts::new(input, 0),
-        SessionStoreCompleteness::Unknown,
-    ))
+    let compaction_count = first_u64(payload, &["compactionCount"]).unwrap_or(0);
+    let before = first_u64(payload, &["totalTokensBeforeCompaction", "tokens_before"])
+        .filter(|&n| n > 0 || compaction_count > 0);
+    let after = first_u64(payload, &["tokens_after"]).or(before.map(|_| input));
+    let counts = UsageCounts::new(input, 0).with_extras(ExtraCounts {
+        tokens_before: before,
+        tokens_after: after,
+        ..ExtraCounts::default()
+    });
+    Ok((counts, SessionStoreCompleteness::Unknown))
 }
 
 fn is_global(payload: &Value) -> bool {
@@ -371,6 +377,8 @@ fn extract_counts(usage: &Value) -> Result<UsageCounts, AdaptError> {
                 cache_read: cache_read.or(extras.cache_read),
                 cache_write: extras.cache_write,
                 reasoning: extras.reasoning,
+                tokens_before: extras.tokens_before,
+                tokens_after: extras.tokens_after,
             })
         }
     })
@@ -411,5 +419,7 @@ fn counts_from(
         cache_read: first_u64(usage, cache_read_keys),
         cache_write: first_u64(usage, cache_write_keys),
         reasoning: first_u64(usage, reasoning_keys),
+        tokens_before: first_u64(usage, &["tokens_before", "totalTokensBeforeCompaction"]),
+        tokens_after: first_u64(usage, &["tokens_after"]),
     }))
 }

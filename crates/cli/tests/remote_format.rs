@@ -16,6 +16,7 @@ fn sample() -> UsageObservation {
             cache_read: Some(3),
             cache_write: None,
             reasoning: None,
+            ..ExtraCounts::default()
         }),
         ObservationSource::PluginReport,
         SessionStoreCompleteness::Unknown,

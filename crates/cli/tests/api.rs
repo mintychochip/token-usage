@@ -25,6 +25,7 @@ fn sample_obs() -> UsageObservation {
             cache_read: Some(3000),
             cache_write: None,
             reasoning: None,
+            ..ExtraCounts::default()
         }),
         ObservationSource::PluginReport,
         SessionStoreCompleteness::Complete,
