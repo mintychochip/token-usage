@@ -71,9 +71,9 @@ queryable together.
 - [x] Living domain catalog for cross-harness token usage
 - [x] Domain objects (harness, session, counts, source, completeness)
 - [x] Durable store: ingest, read-back, same-identity merge, distinct harnesses
-- [ ] Rust API + reporter CLI
+- [x] Rust API + reporter CLI
 - [x] Adapters and fixtures for all five named harnesses
-- [ ] Host-native plugin/hook wrappers that call the reporter
+- [x] Host-native plugin/hook wrappers that call the reporter
 
 ## Next
 
@@ -93,8 +93,9 @@ queryable together.
 | 2026-08-19 | Last-write-wins merge on same identity | Host reports are cumulative snapshots; adding would double-count |
 | 2026-08-19 | Shared Rust reporter; host wrappers only exec it | Hosts often cannot load Rust; ingest must stay in one place |
 | 2026-08-19 | Grok session fragments are partial/unknown | Grok Build may not expose a complete session store |
+| 2026-08-19 | Global approximations use reserved `__harness_global__` when the payload has no session | `source` still distinguishes plugin vs global; a real session id is allowed if the host supplies one |
 
 ## Open questions
 
 - [x] How to merge a second report for the same session? Last-write-wins.
-- [ ] Whether a reserved `__harness_global__` session id should be required for global approximations, or any session id is allowed when `source` is global
+- [x] Reserved `__harness_global__` session id for global approximations that omit a session id. Any session id is allowed when `source` is global.
