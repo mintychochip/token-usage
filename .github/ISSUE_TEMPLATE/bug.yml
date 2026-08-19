@@ -1,0 +1,56 @@
+name: Bug report
+description: Report incorrect totals, merge, or adapter mapping
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not include prompts, transcripts, or API keys. Token counts and harness/session ids are enough.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Actual vs expected totals, source, or completeness.
+    validations:
+      required: true
+  - type: dropdown
+    id: harness
+    attributes:
+      label: Harness
+      options:
+        - claude-code
+        - codex
+        - grok
+        - oh-my-pi
+        - jcode
+        - hermes
+        - opencode
+        - gemini-cli
+        - aider
+        - goose
+        - amp
+        - droid
+        - cline
+        - pi
+        - api / reporter (no host)
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Commands, fixture files, or request bodies. Redact secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: payload
+    attributes:
+      label: Usage payload (optional)
+      description: Host JSON with only usage/session fields. No transcripts.
+      render: json
+  - type: input
+    id: rustc
+    attributes:
+      label: rustc version
+      placeholder: "rustc --version"

@@ -1,0 +1,36 @@
+name: New harness
+description: Request or track support for another coding-agent host
+labels: ["harness"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Harness name
+      placeholder: e.g. crush, kilo, antigravity
+    validations:
+      required: true
+  - type: textarea
+    id: surface
+    attributes:
+      label: Plugin / hook surface
+      description: Where does the host load plugins or hooks? Link docs if you have them.
+    validations:
+      required: true
+  - type: textarea
+    id: payload
+    attributes:
+      label: Representative usage payload
+      description: Session hook, global /usage snapshot, or session fragment. Counts only, no transcripts.
+      render: json
+    validations:
+      required: true
+  - type: dropdown
+    id: completeness
+    attributes:
+      label: Session-store completeness
+      options:
+        - complete
+        - partial
+        - unknown
+    validations:
+      required: true
