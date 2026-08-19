@@ -26,6 +26,8 @@ queryable together.
   and session-store completeness
 - Durable local store with sync-on-same-identity
 - Publish/pull to a user-owned GitHub gist or a directory they commit
+- Optional model id on an observation when the host sent one
+- Internal USD cost estimate from a public model-price API (not user-supplied rates)
 - Thin Rust HTTP API and a reporter CLI that plugins exec
 - Adapters for representative harness payloads
 - Host-native wrappers (hooks/manifests/scripts) that invoke the reporter
@@ -35,7 +37,8 @@ queryable together.
 ### Out of scope / non-goals
 
 - Marketplace publishing or live install into a running harness
-- Billing, pricing, dashboards, TUI/web UI
+- Billing UI, invoices, payment, or a usage TUI/dashboard
+- Asking the user to submit $/token (prices are looked up internally)
 - Auth, multi-user tenancy, or a hosted usage database
 - Remote replication of user totals onto api.mintychochip.dev
 - Implementing a tokenizer or independently recounting tokens
@@ -49,6 +52,11 @@ queryable together.
   OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi.
 - Input and output token counts are always present. Extra counts (cache,
   reasoning, tokens before/after compact) are optional.
+- `model` is optional. Cost is derived at read time from `(model, counts, price
+  table)`. Missing model or unknown price means no cost — do not invent a rate
+  or a default model.
+- A public summary that already has per-session plugin reports must not also add
+  that harness's `__harness_global__` row (that would double-count).
 - `ObservationSource` is either a per-session plugin report or a harness-global
   approximation.
 - `SessionStoreCompleteness` is `complete`, `partial`, or `unknown`. Grok
@@ -75,6 +83,9 @@ queryable together.
   Public publishes omit `usage.jsonl`.
 - Global `/usage` snapshots live at `{harness-home}/usage.json` and are marked
   `kind: global_usage`. `sync --interval N` re-scans in a loop (implies force).
+- Prices: parse OpenRouter `/api/v1/models` (LiteLLM object as fallback). Cache
+  `prices.json` next to the store. `TOKEN_USAGE_PRICES` overrides. Fetch is
+  skipped when `TOKEN_USAGE_PRICES_FETCH=0`. No cost if model or rate is missing.
 - Tests drive shipped types and the real store/adapters, using fixture JSON
   rather than live harness processes.
 - Do not hard-code expected totals in tests without feeding those totals
@@ -94,6 +105,9 @@ queryable together.
 - [x] GitHub publish/pull: secret gist (or a directory) holds JSONL; public gist is summary + shields only
 - [x] Optional sync against a harness's own global `/usage` snapshot on a timer (`{harness}/usage.json`, `sync --interval`)
 - [x] Compaction-aware extra counts (tokens before/after compact)
+- [x] Persist host `model` on observations when present
+- [x] Internal USD estimates from OpenRouter (LiteLLM fallback); cache next to the store
+- [x] Summary/badge skip global rows when session reports exist for that harness
 
 ## Next
 - [x] Stateless hosted adapt API (`TOKEN_USAGE_STATELESS`); storage stays client-owned
@@ -102,7 +116,7 @@ queryable together.
 
 ## Future
 
-- [ ] Billing/pricing tables and a usage TUI
+- [ ] Billing UI / invoices and a usage TUI
 - [ ] Multi-machine replication beyond gist/dir pull
 - [ ] Auth and multi-user tenancy
 - [ ] Object-store PUT per identity (fallback if no always-on HTTP)
@@ -124,6 +138,8 @@ queryable together.
 | 2026-08-19 | GitHub is the remote: `publish`/`pull` via gist (`gh`) or a directory | Ingest stays FileStore; no usage DB on mintychochip.dev. Secret gist includes `usage.jsonl`; public gist is summary + badge only |
 | 2026-08-19 | `{harness-home}/usage.json` is the global `/usage` snapshot; `sync --interval` re-reads it | Hosts dump a global approximation separately from session logs |
 | 2026-08-19 | ExtraCounts.tokens_before/after copy Grok `totalTokensBeforeCompaction` / `contextTokensUsed` | Do not invent counts; only map fields the host already sent |
+| 2026-08-19 | Persist optional `model`; estimate USD from OpenRouter (not user-submitted rates) | Cost is internal; missing model/price means no cost |
+| 2026-08-19 | Summary omits `__harness_global__` when session plugin reports exist for that harness | Global `/usage` is the same totals, not extra usage |
 
 ## Open questions
 
