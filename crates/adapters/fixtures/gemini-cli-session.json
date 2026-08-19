@@ -1,0 +1,11 @@
+{
+  "session_id": "gemini-sess-1",
+  "hook_event_name": "AfterAgent",
+  "stats": {
+    "tokens": {
+      "input": 7600,
+      "output": 940,
+      "cached": 1100
+    }
+  }
+}

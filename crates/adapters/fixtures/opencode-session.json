@@ -1,0 +1,13 @@
+{
+  "type": "session.idle",
+  "properties": {
+    "sessionId": "oc-sess-1",
+    "tokens": {
+      "input": 14000,
+      "output": 1600,
+      "cache": {
+        "read": 2000
+      }
+    }
+  }
+}

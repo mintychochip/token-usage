@@ -6,13 +6,22 @@ use token_usage_domain::{
 };
 
 #[test]
-fn named_harnesses_cover_all_five_hosts() {
+fn named_harnesses_cover_supported_hosts() {
     let names = [
         ("claude-code", Harness::ClaudeCode),
         ("codex", Harness::Codex),
         ("grok", Harness::Grok),
         ("oh-my-pi", Harness::OhMyPi),
         ("jcode", Harness::Jcode),
+        ("hermes", Harness::Hermes),
+        ("opencode", Harness::OpenCode),
+        ("gemini-cli", Harness::GeminiCli),
+        ("aider", Harness::Aider),
+        ("goose", Harness::Goose),
+        ("amp", Harness::Amp),
+        ("droid", Harness::Droid),
+        ("cline", Harness::Cline),
+        ("pi", Harness::Pi),
     ];
     for (slug, expected) in names {
         assert_eq!(Harness::parse(slug).expect("parse"), expected);
@@ -27,6 +36,12 @@ fn harness_aliases_normalize_to_canonical_names() {
     assert_eq!(Harness::parse("Grok Build").unwrap(), Harness::Grok);
     assert_eq!(Harness::parse("grok-build").unwrap(), Harness::Grok);
     assert_eq!(Harness::parse("omp").unwrap(), Harness::OhMyPi);
+    assert_eq!(Harness::parse("Hermes Agent").unwrap(), Harness::Hermes);
+    assert_eq!(Harness::parse("hermes-agent").unwrap(), Harness::Hermes);
+    assert_eq!(Harness::parse("open-code").unwrap(), Harness::OpenCode);
+    assert_eq!(Harness::parse("gemini").unwrap(), Harness::GeminiCli);
+    assert_eq!(Harness::parse("factory-droid").unwrap(), Harness::Droid);
+    assert_eq!(Harness::parse("factory").unwrap(), Harness::Droid);
 }
 
 #[test]
@@ -36,9 +51,9 @@ fn unknown_harness_is_rejected() {
 }
 
 #[test]
-fn five_named_harnesses_are_pairwise_distinct() {
+fn named_harnesses_are_pairwise_distinct() {
     let all = Harness::all();
-    assert_eq!(all.len(), 5);
+    assert_eq!(all.len(), 14);
     for (i, a) in all.iter().enumerate() {
         for (j, b) in all.iter().enumerate() {
             assert_eq!(a == b, i == j);

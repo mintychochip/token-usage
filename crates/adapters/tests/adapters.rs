@@ -147,7 +147,148 @@ fn jcode_usage_preserves_prompt_and_completion_tokens() {
 }
 
 #[test]
-fn five_adapters_feed_one_store_without_colliding() {
+fn hermes_post_api_request_preserves_fixture_counts() {
+    let payload = fixture("hermes-session.json");
+    let loaded = ingest_and_reload(Harness::Hermes, &payload);
+    let usage = &payload["usage"];
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        usage["input_tokens"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        usage["output_tokens"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().extras().cache_read,
+        usage["cache_read_tokens"].as_u64()
+    );
+    assert_eq!(loaded.identity().session_id().as_str(), "hermes-sess-1");
+    assert_eq!(loaded.source(), ObservationSource::PluginReport);
+}
+
+#[test]
+fn opencode_session_event_preserves_nested_token_counts() {
+    let payload = fixture("opencode-session.json");
+    let loaded = ingest_and_reload(Harness::OpenCode, &payload);
+    let tokens = &payload["properties"]["tokens"];
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        tokens["input"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        tokens["output"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().extras().cache_read,
+        tokens["cache"]["read"].as_u64()
+    );
+    assert_eq!(loaded.identity().session_id().as_str(), "oc-sess-1");
+}
+
+#[test]
+fn gemini_cli_stats_preserve_fixture_counts() {
+    let payload = fixture("gemini-cli-session.json");
+    let loaded = ingest_and_reload(Harness::GeminiCli, &payload);
+    let tokens = &payload["stats"]["tokens"];
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        tokens["input"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        tokens["output"].as_u64().unwrap()
+    );
+    assert_eq!(loaded.counts().extras().cache_read, tokens["cached"].as_u64());
+}
+
+#[test]
+fn aider_tokens_dump_preserves_fixture_counts() {
+    let payload = fixture("aider-session.json");
+    let loaded = ingest_and_reload(Harness::Aider, &payload);
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        payload["tokens"]["input"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        payload["tokens"]["output"].as_u64().unwrap()
+    );
+}
+
+#[test]
+fn goose_session_export_preserves_fixture_counts() {
+    let payload = fixture("goose-session.json");
+    let loaded = ingest_and_reload(Harness::Goose, &payload);
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        payload["input_tokens"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        payload["output_tokens"].as_u64().unwrap()
+    );
+    assert_eq!(loaded.identity().session_id().as_str(), "20251228_72");
+}
+
+#[test]
+fn amp_session_preserves_fixture_counts() {
+    let payload = fixture("amp-session.json");
+    let loaded = ingest_and_reload(Harness::Amp, &payload);
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        payload["usage"]["input_tokens"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        payload["usage"]["output_tokens"].as_u64().unwrap()
+    );
+}
+
+#[test]
+fn droid_stop_hook_preserves_fixture_counts() {
+    let payload = fixture("droid-session.json");
+    let loaded = ingest_and_reload(Harness::Droid, &payload);
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        payload["usage"]["input_tokens"].as_u64().unwrap()
+    );
+    assert_eq!(loaded.identity().session_id().as_str(), "droid-sess-1");
+}
+
+#[test]
+fn cline_task_usage_preserves_tokens_in_out() {
+    let payload = fixture("cline-session.json");
+    let loaded = ingest_and_reload(Harness::Cline, &payload);
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        payload["usage"]["tokensIn"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        payload["usage"]["tokensOut"].as_u64().unwrap()
+    );
+    assert_eq!(loaded.identity().session_id().as_str(), "cline-task-1");
+}
+
+#[test]
+fn pi_session_stats_preserve_fixture_counts() {
+    let payload = fixture("pi-session.json");
+    let loaded = ingest_and_reload(Harness::Pi, &payload);
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        payload["tokens"]["input"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        payload["tokens"]["output"].as_u64().unwrap()
+    );
+    assert_eq!(loaded.identity().session_id().as_str(), "pi-sess-1");
+}
+
+#[test]
+fn all_adapters_feed_one_store_without_colliding() {
     let (_dir, store) = store();
     let cases = [
         (Harness::ClaudeCode, "claude-code-session.json"),
@@ -155,12 +296,21 @@ fn five_adapters_feed_one_store_without_colliding() {
         (Harness::Grok, "grok-partial.json"),
         (Harness::OhMyPi, "oh-my-pi-session.json"),
         (Harness::Jcode, "jcode-session.json"),
+        (Harness::Hermes, "hermes-session.json"),
+        (Harness::OpenCode, "opencode-session.json"),
+        (Harness::GeminiCli, "gemini-cli-session.json"),
+        (Harness::Aider, "aider-session.json"),
+        (Harness::Goose, "goose-session.json"),
+        (Harness::Amp, "amp-session.json"),
+        (Harness::Droid, "droid-session.json"),
+        (Harness::Cline, "cline-session.json"),
+        (Harness::Pi, "pi-session.json"),
     ];
     for (harness, name) in cases {
         let obs = adapt(harness, &fixture(name)).unwrap();
         store.ingest(obs).unwrap();
     }
-    assert_eq!(store.list().unwrap().len(), 5);
+    assert_eq!(store.list().unwrap().len(), cases.len());
 
     let first = adapt(Harness::Codex, &fixture("codex-session.json")).unwrap();
     let mut updated_payload = fixture("codex-session.json");

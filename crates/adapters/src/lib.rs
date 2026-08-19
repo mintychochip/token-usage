@@ -26,6 +26,15 @@ pub fn adapt(harness: Harness, payload: &Value) -> Result<UsageObservation, Adap
         Harness::Grok => adapt_grok(payload),
         Harness::OhMyPi => adapt_oh_my_pi(payload),
         Harness::Jcode => adapt_jcode(payload),
+        Harness::Hermes => adapt_hermes(payload),
+        Harness::OpenCode => adapt_opencode(payload),
+        Harness::GeminiCli => adapt_gemini_cli(payload),
+        Harness::Aider => adapt_aider(payload),
+        Harness::Goose => adapt_goose(payload),
+        Harness::Amp => adapt_amp(payload),
+        Harness::Droid => adapt_droid(payload),
+        Harness::Cline => adapt_cline(payload),
+        Harness::Pi => adapt_pi(payload),
     }
 }
 
@@ -169,6 +178,76 @@ pub fn adapt_jcode(payload: &Value) -> Result<UsageObservation, AdaptError> {
     ))
 }
 
+/// Hermes Agent `post_api_request` usage snapshot.
+pub fn adapt_hermes(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::Hermes, payload)
+}
+
+/// OpenCode session event (`session.idle` / plugin event envelope).
+pub fn adapt_opencode(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::OpenCode, payload)
+}
+
+/// Gemini CLI AfterAgent /stats snapshot.
+pub fn adapt_gemini_cli(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::GeminiCli, payload)
+}
+
+/// Aider `/tokens` or session usage dump.
+pub fn adapt_aider(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::Aider, payload)
+}
+
+/// Goose session export (Open Plugins hook or JSON export).
+pub fn adapt_goose(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::Goose, payload)
+}
+
+/// Sourcegraph Amp session usage.
+pub fn adapt_amp(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::Amp, payload)
+}
+
+/// Factory Droid Stop-hook usage.
+pub fn adapt_droid(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::Droid, payload)
+}
+
+/// Cline task usage (`tokensIn` / `tokensOut`).
+pub fn adapt_cline(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::Cline, payload)
+}
+
+/// Pi `get_session_stats` tokens object.
+pub fn adapt_pi(payload: &Value) -> Result<UsageObservation, AdaptError> {
+    adapt_standard(Harness::Pi, payload)
+}
+
+fn adapt_standard(harness: Harness, payload: &Value) -> Result<UsageObservation, AdaptError> {
+    let global = is_global(payload);
+    let session = if global {
+        SessionId::harness_global()
+    } else {
+        session_id(payload)?
+    };
+    let usage = usage_object(payload);
+    let counts = extract_counts(usage)?;
+    Ok(UsageObservation::new(
+        ObservationIdentity::new(harness, session),
+        counts,
+        if global {
+            ObservationSource::HarnessGlobalApproximation
+        } else {
+            ObservationSource::PluginReport
+        },
+        if global {
+            SessionStoreCompleteness::Partial
+        } else {
+            SessionStoreCompleteness::Complete
+        },
+    ))
+}
+
 fn grok_context_counts(
     payload: &Value,
 ) -> Result<(UsageCounts, SessionStoreCompleteness), AdaptError> {
@@ -186,10 +265,105 @@ fn is_global(payload: &Value) -> bool {
 }
 
 fn session_id(payload: &Value) -> Result<SessionId, AdaptError> {
-    let raw = first_str(payload, &["session_id", "sessionId", "sessionID"])
-        .or_else(|| payload.pointer("/session/id").and_then(Value::as_str))
-        .ok_or(AdaptError::MissingSessionId)?;
+    let raw = first_str(
+        payload,
+        &[
+            "session_id",
+            "sessionId",
+            "sessionID",
+            "taskId",
+            "task_id",
+            "id",
+        ],
+    )
+    .or_else(|| payload.pointer("/session/id").and_then(Value::as_str))
+    .or_else(|| payload.pointer("/properties/sessionId").and_then(Value::as_str))
+    .or_else(|| payload.pointer("/properties/session_id").and_then(Value::as_str))
+    .ok_or(AdaptError::MissingSessionId)?;
     SessionId::parse(raw).map_err(|_| AdaptError::MissingSessionId)
+}
+
+fn usage_object(payload: &Value) -> &Value {
+    for pointer in [
+        "/usage",
+        "/token_usage",
+        "/tokens",
+        "/stats/tokens",
+        "/stats",
+        "/properties/tokens",
+        "/totals",
+    ] {
+        if let Some(value) = payload.pointer(pointer).filter(|value| value.is_object()) {
+            if looks_like_counts(value) {
+                return value;
+            }
+        }
+    }
+    payload
+}
+
+fn looks_like_counts(value: &Value) -> bool {
+    [
+        "input_tokens",
+        "inputTokens",
+        "prompt_tokens",
+        "tokensIn",
+        "input",
+        "output_tokens",
+        "outputTokens",
+        "completion_tokens",
+        "tokensOut",
+        "output",
+    ]
+    .iter()
+    .any(|key| value.get(*key).is_some())
+}
+
+fn extract_counts(usage: &Value) -> Result<UsageCounts, AdaptError> {
+    let cache_read = first_u64(
+        usage,
+        &[
+            "cache_read_input_tokens",
+            "cache_read_tokens",
+            "cached_input_tokens",
+            "cacheReadTokens",
+            "cache_read",
+            "cached",
+        ],
+    )
+    .or_else(|| usage.pointer("/cache/read").and_then(Value::as_u64));
+    counts_from(
+        usage,
+        &[
+            "input_tokens",
+            "inputTokens",
+            "prompt_tokens",
+            "tokensIn",
+            "input",
+        ],
+        &[
+            "output_tokens",
+            "outputTokens",
+            "completion_tokens",
+            "tokensOut",
+            "output",
+        ],
+        &[],
+        &["cache_write", "cacheWriteTokens", "cache_creation_input_tokens"],
+        &["reasoning_tokens", "reasoning"],
+    )
+    .map(|counts| {
+        let extras = counts.extras().clone();
+        if cache_read.is_none() && extras.is_empty() {
+            counts
+        } else {
+            counts.with_extras(ExtraCounts {
+                cache_read: cache_read.or(extras.cache_read),
+                cache_write: extras.cache_write,
+                reasoning: extras.reasoning,
+            })
+        }
+    })
 }
 
 fn first_object<'a>(payload: &'a Value, keys: &[&str]) -> Option<&'a Value> {

@@ -1,0 +1,8 @@
+{
+  "session_id": "droid-sess-1",
+  "hook_event_name": "Stop",
+  "usage": {
+    "input_tokens": 15500,
+    "output_tokens": 1300
+  }
+}

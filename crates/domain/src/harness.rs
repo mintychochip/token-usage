@@ -18,17 +18,44 @@ pub enum Harness {
     OhMyPi,
     /// jcode.
     Jcode,
+    /// Nous Research Hermes Agent.
+    Hermes,
+    /// OpenCode.
+    OpenCode,
+    /// Google Gemini CLI.
+    GeminiCli,
+    /// Aider.
+    Aider,
+    /// Block Goose.
+    Goose,
+    /// Sourcegraph Amp.
+    Amp,
+    /// Factory Droid.
+    Droid,
+    /// Cline.
+    Cline,
+    /// Pi coding agent (badlogic), distinct from oh-my-pi.
+    Pi,
 }
 
 impl Harness {
     /// Every named harness, in stable display order.
-    pub const fn all() -> [Harness; 5] {
+    pub const fn all() -> [Harness; 14] {
         [
             Harness::ClaudeCode,
             Harness::Codex,
             Harness::Grok,
             Harness::OhMyPi,
             Harness::Jcode,
+            Harness::Hermes,
+            Harness::OpenCode,
+            Harness::GeminiCli,
+            Harness::Aider,
+            Harness::Goose,
+            Harness::Amp,
+            Harness::Droid,
+            Harness::Cline,
+            Harness::Pi,
         ]
     }
 
@@ -40,6 +67,15 @@ impl Harness {
             Harness::Grok => "grok",
             Harness::OhMyPi => "oh-my-pi",
             Harness::Jcode => "jcode",
+            Harness::Hermes => "hermes",
+            Harness::OpenCode => "opencode",
+            Harness::GeminiCli => "gemini-cli",
+            Harness::Aider => "aider",
+            Harness::Goose => "goose",
+            Harness::Amp => "amp",
+            Harness::Droid => "droid",
+            Harness::Cline => "cline",
+            Harness::Pi => "pi",
         }
     }
 
@@ -62,6 +98,15 @@ impl Harness {
             "grok" | "grok-build" => Ok(Harness::Grok),
             "oh-my-pi" | "omp" => Ok(Harness::OhMyPi),
             "jcode" => Ok(Harness::Jcode),
+            "hermes" | "hermes-agent" => Ok(Harness::Hermes),
+            "opencode" | "open-code" => Ok(Harness::OpenCode),
+            "gemini-cli" | "gemini" => Ok(Harness::GeminiCli),
+            "aider" => Ok(Harness::Aider),
+            "goose" => Ok(Harness::Goose),
+            "amp" | "sourcegraph-amp" => Ok(Harness::Amp),
+            "droid" | "factory" | "factory-droid" => Ok(Harness::Droid),
+            "cline" => Ok(Harness::Cline),
+            "pi" => Ok(Harness::Pi),
             _ => Err(DomainError::UnknownHarness(raw.to_string())),
         }
     }
