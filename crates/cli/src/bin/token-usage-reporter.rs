@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use token_usage_adapters::adapt;
 use token_usage_cli::{
-    bundle_from_store, load_github_config, publish_snippets, pull_dir, pull_gist, push_gist,
-    save_github_config, shields_badge, summarize_priced, write_bundle, WireHarnessSync,
-    WireObservation, WireSyncStatus, USAGE_CARD_JS,
+    bundle_from_store, gh_login, gist_raw_base, load_github_config, publish_snippets, pull_dir,
+    pull_gist, push_gist, save_github_config, shields_badge, summarize_priced, write_bundle,
+    WireHarnessSync, WireObservation, WireSyncStatus, USAGE_CARD_JS,
 };
 use token_usage_domain::{Harness, ObservationIdentity, SessionId};
 use token_usage_store::FileStore;
@@ -277,12 +277,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::id(),
                 unix_now()
             ));
-            let gist_id = push_gist(&bundle, remembered.as_deref(), public, &work)?;
+            let gist = push_gist(&bundle, remembered.as_deref(), public, &work)?;
             let _ = std::fs::remove_dir_all(&work);
-            cfg.gist_id = Some(gist_id.clone());
+            let owner = gist.owner.or(cfg.gist_owner.clone()).or_else(gh_login);
+            cfg.gist_id = Some(gist.id.clone());
+            cfg.gist_owner = owner.clone();
             save_github_config(&store_path, &cfg)?;
-            let base = url.unwrap_or_else(|| format!("https://gist.github.com/{gist_id}/raw"));
-            println!("{gist_id}");
+            let base = match (url, owner.as_deref()) {
+                (Some(base), _) => base,
+                (None, Some(owner)) => gist_raw_base(owner, &gist.id),
+                (None, None) => {
+                    return Err("could not determine gist owner for raw URLs".into());
+                }
+            };
+            println!("{}", gist.id);
             println!("{}", publish_snippets(&base));
         }
         Command::Pull { dir, gist } => {

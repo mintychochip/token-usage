@@ -85,6 +85,10 @@ if args[:2] == ["gist", "edit"]:
     copy_files(dest, file_args(args[3:]))
     sys.exit(0)
 
+if args[:1] == ["api"] and args[1] == "user":
+    print(json.dumps({"login": "mintychochip"}))
+    sys.exit(0)
+
 if args[:1] == ["api"] and args[1].startswith("gists/"):
     gist_id = args[1].split("/", 1)[1]
     dest = gists / gist_id
@@ -92,7 +96,7 @@ if args[:1] == ["api"] and args[1].startswith("gists/"):
     if dest.is_dir():
         for p in dest.iterdir():
             files[p.name] = {"content": p.read_text()}
-    print(json.dumps({"files": files}))
+    print(json.dumps({"files": files, "owner": {"login": "mintychochip"}}))
     sys.exit(0)
 
 sys.stderr.write("unexpected fake-gh invocation: " + " ".join(args) + "\n")
@@ -337,6 +341,60 @@ fn public_gist_omits_jsonl() {
     assert!(
         !gh_state.join("gists/gist1/usage.jsonl").exists(),
         "public gist must not include session jsonl"
+    );
+}
+
+#[test]
+fn gist_publish_snippets_use_raw_githubusercontent_url_and_inline_js() {
+    let dir = tempdir().unwrap();
+    let store = dir.path().join("store.json");
+    let home = dir.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+    ingest_hermes(&store, &home);
+
+    let gh_state = dir.path().join("gh");
+    fs::create_dir_all(&gh_state).unwrap();
+    let fake_gh = write_fake_gh(dir.path());
+
+    let publish = reporter()
+        .env("TOKEN_USAGE_GH", &fake_gh)
+        .env("FAKE_GH_STATE", &gh_state)
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&home)
+        .args(["publish", "--gist", "--public"])
+        .output()
+        .unwrap();
+    assert!(
+        publish.status.success(),
+        "{}",
+        String::from_utf8_lossy(&publish.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&publish.stdout);
+    assert!(
+        stdout.contains("gist.githubusercontent.com/mintychochip/gist1/raw"),
+        "badge must use gist raw host+owner+id: {stdout}"
+    );
+    assert!(
+        !stdout.contains("gist.github.com/gist1/raw"),
+        "gist.github.com/{{id}}/raw 404s: {stdout}"
+    );
+    assert!(
+        stdout.contains("usage-badge.json") && stdout.contains("usage-summary.json"),
+        "snippets must name the published files: {stdout}"
+    );
+    assert!(
+        !stdout.contains("usage-card.js"),
+        "website paste must not depend on a gist-hosted .js file: {stdout}"
+    );
+    assert!(
+        stdout.contains("<script>") && !stdout.contains("<script src"),
+        "website paste must inline the card script: {stdout}"
+    );
+    assert!(
+        !gh_state.join("gists/gist1/usage-card.js").exists(),
+        "do not upload usage-card.js to the gist"
     );
 }
 

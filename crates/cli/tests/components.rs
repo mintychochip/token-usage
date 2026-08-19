@@ -59,6 +59,14 @@ fn website_embed_fetches_summary_json_and_omits_session_ids() {
         !html.contains("require(") && !html.contains("module.exports"),
         "embed must run in a browser, not Node: {html}"
     );
+    assert!(
+        !html.contains("script src") && !html.contains("<script src"),
+        "gist raw cannot serve JS; embed must inline the script: {html}"
+    );
+    assert!(
+        html.contains("<script>") && (html.contains("fetch") || html.contains("data-summary-url")),
+        "inlined snippet must still fetch the summary: {html}"
+    );
 }
 
 #[test]

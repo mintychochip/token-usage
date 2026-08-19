@@ -12,14 +12,14 @@ pub fn github_badge_markdown(badge_json_url: &str) -> String {
 }
 
 /// HTML paste snippet that loads the published summary (no session ids).
+///
+/// The card script is inlined. Gist raw URLs are `text/plain` with nosniff,
+/// so a `<script src>` to `usage-card.js` would not run.
 pub fn website_embed_html(summary_json_url: &str) -> String {
     format!(
-        "<div class=\"token-usage-card\" data-summary-url=\"{}\"></div>\n<script src=\"{}\"></script>\n",
+        "<div class=\"token-usage-card\" data-summary-url=\"{}\"></div>\n<script>\n{}\n</script>\n",
         escape_attr(summary_json_url),
-        escape_attr(&join_published_url(
-            parent_url(summary_json_url).as_deref().unwrap_or("."),
-            "usage-card.js"
-        ))
+        USAGE_CARD_JS.trim()
     )
 }
 
@@ -55,10 +55,9 @@ pub fn publish_snippets(base_url: &str) -> String {
     )
 }
 
-fn parent_url(url: &str) -> Option<String> {
-    let trimmed = url.trim_end_matches('/');
-    let idx = trimmed.rfind('/')?;
-    Some(trimmed[..idx].to_string())
+/// Raw gist file prefix: `https://gist.githubusercontent.com/{owner}/{id}/raw`.
+pub fn gist_raw_base(owner: &str, id: &str) -> String {
+    format!("https://gist.githubusercontent.com/{owner}/{id}/raw")
 }
 
 fn encode_query(raw: &str) -> String {

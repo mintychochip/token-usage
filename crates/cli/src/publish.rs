@@ -23,6 +23,15 @@ pub struct PublishBundle {
 pub struct GithubConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gist_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gist_owner: Option<String>,
+}
+
+/// Gist identity parsed from `gh gist create` output.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GistRef {
+    pub id: String,
+    pub owner: Option<String>,
 }
 
 /// Build the files a gist or usage repo should contain.
@@ -95,13 +104,13 @@ fn import_jsonl(store: &FileStore, raw: &str) -> Result<u64, String> {
     Ok(n)
 }
 
-/// Push a bundle with `gh gist`. Returns the gist id.
+/// Push a bundle with `gh gist`. Returns id and owner when the create URL has them.
 pub fn push_gist(
     bundle: &PublishBundle,
     id: Option<&str>,
     public: bool,
     work: &Path,
-) -> Result<String, String> {
+) -> Result<GistRef, String> {
     write_bundle(work, bundle, !public)?;
     let gh = gh_bin();
     if let Some(id) = id {
@@ -113,7 +122,10 @@ pub fn push_gist(
             cmd.arg(work.join("usage.jsonl"));
         }
         run_gh(&mut cmd)?;
-        return Ok(id.to_string());
+        return Ok(GistRef {
+            id: id.to_string(),
+            owner: None,
+        });
     }
     let mut cmd = Command::new(&gh);
     cmd.arg("gist").arg("create").arg("-d").arg("token-usage");
@@ -126,7 +138,7 @@ pub fn push_gist(
         cmd.arg(work.join("usage.jsonl"));
     }
     let out = run_gh(&mut cmd)?;
-    parse_gist_id(&out).ok_or_else(|| format!("could not parse gist id from: {out}"))
+    parse_gist_ref(&out).ok_or_else(|| format!("could not parse gist id from: {out}"))
 }
 
 /// Fetch a gist via `gh api` and import `usage.jsonl` when present.
@@ -193,7 +205,42 @@ fn run_gh(cmd: &mut Command) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
-fn parse_gist_id(output: &str) -> Option<String> {
-    let url = output.lines().rev().find(|l| !l.trim().is_empty())?;
-    url.rsplit('/').next().map(|s| s.trim().to_string())
+fn parse_gist_ref(output: &str) -> Option<GistRef> {
+    let url = output.lines().rev().find(|l| !l.trim().is_empty())?.trim();
+    if let Some(rest) = url.split("gist.github.com/").nth(1) {
+        let mut parts = rest.trim_matches('/').split('/');
+        let first = parts.next()?.trim();
+        if first.is_empty() {
+            return None;
+        }
+        if let Some(id) = parts.next() {
+            let id = id.trim();
+            if !id.is_empty() {
+                return Some(GistRef {
+                    id: id.to_string(),
+                    owner: Some(first.to_string()),
+                });
+            }
+        }
+        return Some(GistRef {
+            id: first.to_string(),
+            owner: None,
+        });
+    }
+    url.rsplit('/').next().map(|id| GistRef {
+        id: id.trim().to_string(),
+        owner: None,
+    })
+}
+
+/// `gh api user` login, used when github.json has an id but no owner.
+pub fn gh_login() -> Option<String> {
+    let mut cmd = Command::new(gh_bin());
+    cmd.arg("api").arg("user");
+    let out = run_gh(&mut cmd).ok()?;
+    serde_json::from_str::<serde_json::Value>(&out)
+        .ok()?
+        .get("login")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
 }

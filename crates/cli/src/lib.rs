@@ -22,13 +22,13 @@ use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 use tokio::net::TcpListener;
 
 pub use components::{
-    github_badge_markdown, join_published_url, publish_snippets, render_summary_card,
-    website_embed_html, USAGE_CARD_JS,
+    gist_raw_base, github_badge_markdown, join_published_url, publish_snippets,
+    render_summary_card, website_embed_html, USAGE_CARD_JS,
 };
 pub use pricing::{estimate_cost_usd, load_price_table, parse_openrouter_prices, PriceTable};
 pub use publish::{
-    bundle_from_store, load_github_config, pull_dir, pull_gist, push_gist, save_github_config,
-    write_bundle, GithubConfig, PublishBundle,
+    bundle_from_store, gh_login, load_github_config, pull_dir, pull_gist, push_gist,
+    save_github_config, write_bundle, GistRef, GithubConfig, PublishBundle,
 };
 pub use summary::{
     shields_badge, summarize, summarize_priced, HarnessTotals, ShieldsBadge, UsageSummary,
