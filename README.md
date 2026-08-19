@@ -61,11 +61,14 @@ token-usage-reporter pull --dir ./usage
 
 ```html
 <div class="token-usage-card" data-summary-url="https://you.github.io/usage/usage-summary.json"></div>
-<script src="https://you.github.io/usage/usage-card.js"></script>
+<script>
+/* inlined from embed/usage-card.js — gist raw cannot serve JS */
+</script>
 ```
 
+`publish` prints the full inlined snippet (gist raw is `text/plain` and cannot host `usage-card.js`).
 The card shows totals and estimated cost when present. It never includes session ids.
-The script lives at `embed/usage-card.js` and is copied next to the JSON on publish.
+A directory publish also copies `usage-card.js` next to the JSON if you prefer a separate file.
 
 A secret gist (the default) has `usage.jsonl` so another machine can `pull`.
 `--public` drops session ids and cannot be pulled back. The gist id is saved
