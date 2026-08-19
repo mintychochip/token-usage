@@ -5,7 +5,10 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use token_usage_adapters::adapt;
-use token_usage_cli::{shields_badge, summarize, WireHarnessSync, WireObservation, WireSyncStatus};
+use token_usage_cli::{
+    bundle_from_store, load_github_config, pull_dir, pull_gist, push_gist, save_github_config,
+    shields_badge, summarize, write_bundle, WireHarnessSync, WireObservation, WireSyncStatus,
+};
 use token_usage_domain::{Harness, ObservationIdentity, SessionId};
 use token_usage_store::FileStore;
 use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
@@ -69,6 +72,26 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Push the local store to a directory or a GitHub gist (`gh`).
+    Publish {
+        /// Directory to write (commit this, or host it on GitHub Pages).
+        #[arg(long, conflicts_with = "gist")]
+        dir: Option<PathBuf>,
+        /// Gist id to update. Pass `--gist` alone to create or reuse `github.json`.
+        #[arg(long, num_args = 0..=1, default_missing_value = "")]
+        gist: Option<String>,
+        /// Omit `usage.jsonl` (summary + badge only). Use for a public gist or repo.
+        #[arg(long)]
+        public: bool,
+    },
+    /// Import sessions from a published directory or gist into the local store.
+    Pull {
+        #[arg(long, conflicts_with = "gist")]
+        dir: Option<PathBuf>,
+        /// Gist id to fetch. Pass `--gist` alone to reuse `github.json`.
+        #[arg(long, num_args = 0..=1, default_missing_value = "")]
+        gist: Option<String>,
+    },
 }
 
 fn main() {
@@ -81,7 +104,7 @@ fn main() {
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let store_path = cli.store.unwrap_or_else(default_store_path);
-    let store = FileStore::open(store_path)?;
+    let store = FileStore::open(&store_path)?;
     let roots = cli
         .home
         .map(|home| SyncRoots { home })
@@ -202,6 +225,41 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     .collect(),
             };
             println!("{}", serde_json::to_string_pretty(&status)?);
+        }
+        Command::Publish { dir, gist, public } => {
+            let bundle = bundle_from_store(&store, unix_now())?;
+            if let Some(dir) = dir {
+                write_bundle(&dir, &bundle, !public)?;
+                return Ok(());
+            }
+            let mut cfg = load_github_config(&store_path);
+            let remembered = match gist.as_deref() {
+                None | Some("") => cfg.gist_id.clone(),
+                Some(id) => Some(id.to_string()),
+            };
+            let work = std::env::temp_dir().join(format!(
+                "token-usage-publish-{}-{}",
+                std::process::id(),
+                unix_now()
+            ));
+            let gist_id = push_gist(&bundle, remembered.as_deref(), public, &work)?;
+            let _ = std::fs::remove_dir_all(&work);
+            cfg.gist_id = Some(gist_id.clone());
+            save_github_config(&store_path, &cfg)?;
+            println!("{gist_id}");
+        }
+        Command::Pull { dir, gist } => {
+            if let Some(dir) = dir {
+                pull_dir(&store, &dir)?;
+                return Ok(());
+            }
+            let cfg = load_github_config(&store_path);
+            let id = match gist.as_deref() {
+                None | Some("") => cfg.gist_id,
+                Some(id) => Some(id.to_string()),
+            };
+            let id = id.ok_or("no gist id; pass --gist ID or publish first")?;
+            pull_gist(&store, &id)?;
         }
     }
     Ok(())

@@ -1,5 +1,6 @@
 //! Thin HTTP layer over the durable usage store.
 
+mod publish;
 mod summary;
 mod wire;
 
@@ -18,6 +19,10 @@ use token_usage_store::{FileStore, StoreError};
 use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 use tokio::net::TcpListener;
 
+pub use publish::{
+    bundle_from_store, load_github_config, pull_dir, pull_gist, push_gist, save_github_config,
+    write_bundle, GithubConfig, PublishBundle,
+};
 pub use summary::{shields_badge, summarize, HarnessTotals, ShieldsBadge, UsageSummary};
 pub use wire::{
     WireHarnessSync, WireObservation, WireSessionList, WireSyncRequest, WireSyncStatus,
