@@ -49,9 +49,23 @@ token-usage-reporter publish --gist            # secret gist (includes sessions)
 token-usage-reporter publish --gist --public   # summary + shields badge only
 token-usage-reporter pull --gist               # restore sessions from that gist
 
-token-usage-reporter publish --dir ./usage     # files you commit / GitHub Pages
+token-usage-reporter publish --dir ./usage --url https://you.github.io/usage
 token-usage-reporter pull --dir ./usage
 ```
+
+`publish` prints paste snippets (also `snippets.md` in a directory publish):
+
+```markdown
+[![token usage](https://img.shields.io/endpoint?url=https%3A%2F%2Fyou.github.io%2Fusage%2Fusage-badge.json)]
+```
+
+```html
+<div class="token-usage-card" data-summary-url="https://you.github.io/usage/usage-summary.json"></div>
+<script src="https://you.github.io/usage/usage-card.js"></script>
+```
+
+The card shows totals and estimated cost when present. It never includes session ids.
+The script lives at `embed/usage-card.js` and is copied next to the JSON on publish.
 
 A secret gist (the default) has `usage.jsonl` so another machine can `pull`.
 `--public` drops session ids and cannot be pulled back. The gist id is saved

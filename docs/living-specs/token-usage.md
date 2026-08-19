@@ -26,6 +26,7 @@ queryable together.
   and session-store completeness
 - Durable local store with sync-on-same-identity
 - Publish/pull to a user-owned GitHub gist or a directory they commit
+- Copy-paste GitHub badge and website embed that read published summary/badge JSON
 - Optional model id on an observation when the host sent one
 - Internal USD cost estimate from a public model-price API (not user-supplied rates)
 - Thin Rust HTTP API and a reporter CLI that plugins exec
@@ -89,6 +90,8 @@ queryable together.
 - Ambiguous host ids (`opus-5-1m`, `claude-opus-5-200k`) resolve to the longest
   matching priced id. Exact priced variants win. Do not collapse onto a sibling
   (`opus-4`). Still no cost when nothing unique matches.
+- GitHub/website components are paste snippets over published `usage-badge.json`
+  / `usage-summary.json`. They must not include session ids.
 - Tests drive shipped types and the real store/adapters, using fixture JSON
   rather than live harness processes.
 - Do not hard-code expected totals in tests without feeding those totals
@@ -112,6 +115,7 @@ queryable together.
 - [x] Internal USD estimates from OpenRouter (LiteLLM fallback); cache next to the store
 - [x] Resolve host model variants (`opus-5-1m`) to a priced base id
 - [x] Summary/badge skip global rows when session reports exist for that harness
+- [x] Copy-paste GitHub shields badge and website embed from published JSON
 
 ## Next
 - [x] Stateless hosted adapt API (`TOKEN_USAGE_STATELESS`); storage stays client-owned
@@ -144,6 +148,7 @@ queryable together.
 | 2026-08-19 | ExtraCounts.tokens_before/after copy Grok `totalTokensBeforeCompaction` / `contextTokensUsed` | Do not invent counts; only map fields the host already sent |
 | 2026-08-19 | Persist optional `model`; estimate USD from OpenRouter (not user-submitted rates) | Cost is internal; missing model/price means no cost |
 | 2026-08-19 | Price lookup strips context-window suffixes and matches hyphen tokens | Hosts send `opus-5-1m`; the catalog has `opus-5`. Exact variant still wins |
+| 2026-08-19 | `publish` emits a shields README badge and a website card over published JSON | People paste components; no hosted widget backend |
 | 2026-08-19 | Summary omits `__harness_global__` when session plugin reports exist for that harness | Global `/usage` is the same totals, not extra usage |
 
 ## Open questions
