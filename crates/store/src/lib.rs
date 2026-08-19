@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
-use token_usage_domain::{ObservationIdentity, UsageObservation};
+use token_usage_domain::{Harness, ObservationIdentity, UsageObservation};
 
 /// Failures from opening or writing the store.
 #[derive(Debug, thiserror::Error)]
@@ -26,10 +26,19 @@ pub struct FileStore {
     lock: Mutex<()>,
 }
 
+/// When a harness last had its on-disk sessions scanned into the store.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HarnessSync {
+    pub harness: Harness,
+    pub last_synced_at: u64,
+}
+
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct StoreFile {
     version: u32,
     sessions: Vec<UsageObservation>,
+    #[serde(default)]
+    harness_syncs: Vec<HarnessSync>,
 }
 
 impl FileStore {
@@ -45,8 +54,9 @@ impl FileStore {
             write_atomic(
                 &path,
                 &StoreFile {
-                    version: 1,
+                    version: 2,
                     sessions: Vec::new(),
+                    harness_syncs: Vec::new(),
                 },
             )?;
         }
@@ -56,10 +66,19 @@ impl FileStore {
         })
     }
 
-    /// Persist `observation`. A second report for the same identity replaces
-    /// the stored totals instead of adding a sibling record.
+    /// Persist `observation`, stamping `last_synced_at` with the current time.
     pub fn ingest(&self, observation: UsageObservation) -> Result<UsageObservation, StoreError> {
+        self.ingest_at(observation, unix_now())
+    }
+
+    /// Persist `observation` with an explicit last-synced timestamp.
+    pub fn ingest_at(
+        &self,
+        observation: UsageObservation,
+        last_synced_at: u64,
+    ) -> Result<UsageObservation, StoreError> {
         let _guard = self.lock.lock().expect("store lock");
+        let observation = observation.with_last_synced_at(last_synced_at);
         let mut file = self.load()?;
         if let Some(existing) = file
             .sessions
@@ -72,6 +91,53 @@ impl FileStore {
         }
         write_atomic(&self.path, &file)?;
         Ok(observation)
+    }
+
+    /// Record that `harness` was scanned at `last_synced_at`.
+    pub fn record_harness_sync(
+        &self,
+        harness: Harness,
+        last_synced_at: u64,
+    ) -> Result<HarnessSync, StoreError> {
+        let _guard = self.lock.lock().expect("store lock");
+        let mut file = self.load()?;
+        let record = HarnessSync {
+            harness,
+            last_synced_at,
+        };
+        if let Some(existing) = file
+            .harness_syncs
+            .iter_mut()
+            .find(|row| row.harness == harness)
+        {
+            *existing = record.clone();
+        } else {
+            file.harness_syncs.push(record.clone());
+        }
+        write_atomic(&self.path, &file)?;
+        Ok(record)
+    }
+
+    /// Last time this harness's on-disk store was scanned, if ever.
+    pub fn harness_last_synced(&self, harness: Harness) -> Result<Option<u64>, StoreError> {
+        let _guard = self.lock.lock().expect("store lock");
+        Ok(self
+            .load()?
+            .harness_syncs
+            .into_iter()
+            .find(|row| row.harness == harness)
+            .map(|row| row.last_synced_at))
+    }
+
+    /// True when this harness has never been scanned into the store.
+    pub fn needs_first_sync(&self, harness: Harness) -> Result<bool, StoreError> {
+        Ok(self.harness_last_synced(harness)?.is_none())
+    }
+
+    /// Every harness scan record.
+    pub fn list_harness_syncs(&self) -> Result<Vec<HarnessSync>, StoreError> {
+        let _guard = self.lock.lock().expect("store lock");
+        Ok(self.load()?.harness_syncs)
     }
 
     /// Read the stored total for `identity`, if any.
@@ -97,6 +163,13 @@ impl FileStore {
         let bytes = fs::read(&self.path)?;
         Ok(serde_json::from_slice(&bytes)?)
     }
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 fn write_atomic(path: &Path, file: &StoreFile) -> Result<(), StoreError> {

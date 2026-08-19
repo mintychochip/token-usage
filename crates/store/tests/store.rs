@@ -192,3 +192,60 @@ fn reopen_reads_the_same_totals() {
     assert_eq!(loaded.counts().input_tokens(), 42);
     assert_eq!(loaded.counts().output_tokens(), 6);
 }
+
+#[test]
+fn ingest_stamps_last_synced_at_and_later_ingest_updates_it() {
+    let (_dir, store) = open_store();
+    let first = store
+        .ingest_at(
+            observation(
+                Harness::Hermes,
+                "h1",
+                10,
+                1,
+                ObservationSource::PluginReport,
+                SessionStoreCompleteness::Complete,
+            ),
+            1_700_000_000,
+        )
+        .unwrap();
+    assert_eq!(first.last_synced_at(), Some(1_700_000_000));
+    let second = store
+        .ingest_at(
+            observation(
+                Harness::Hermes,
+                "h1",
+                20,
+                2,
+                ObservationSource::PluginReport,
+                SessionStoreCompleteness::Complete,
+            ),
+            1_700_000_500,
+        )
+        .unwrap();
+    assert_eq!(second.last_synced_at(), Some(1_700_000_500));
+    let loaded = store
+        .get(&identity(Harness::Hermes, "h1"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(loaded.last_synced_at(), Some(1_700_000_500));
+    assert_eq!(loaded.counts().input_tokens(), 20);
+}
+
+#[test]
+fn harness_first_sync_is_recorded_once_until_updated() {
+    let (_dir, store) = open_store();
+    assert!(store.needs_first_sync(Harness::Grok).unwrap());
+    store
+        .record_harness_sync(Harness::Grok, 1_700_000_111)
+        .unwrap();
+    assert!(!store.needs_first_sync(Harness::Grok).unwrap());
+    assert_eq!(
+        store.harness_last_synced(Harness::Grok).unwrap(),
+        Some(1_700_000_111)
+    );
+    assert!(store.needs_first_sync(Harness::Codex).unwrap());
+    let listed = store.list_harness_syncs().unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].harness, Harness::Grok);
+}
