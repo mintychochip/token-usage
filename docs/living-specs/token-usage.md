@@ -77,6 +77,7 @@ queryable together.
 - [x] Adapters and fixtures for all named harnesses
 - [x] Host-native plugin/hook wrappers that call the reporter
 - [x] Hermes Agent, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi adapters
+- [x] `scripts/install.sh` and `scripts/update.sh` prefix installs
 
 ## Next
 

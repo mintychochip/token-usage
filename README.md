@@ -9,6 +9,23 @@ totals for the same harness/session identity.
 
 Repository: [github.com/mintychochip/token-usage](https://github.com/mintychochip/token-usage)
 
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mintychochip/token-usage/master/scripts/install.sh | sh
+```
+
+From a checkout:
+
+```bash
+git clone https://github.com/mintychochip/token-usage.git
+cd token-usage
+./scripts/install.sh          # PREFIX=$HOME/.local by default
+./scripts/update.sh           # git pull --ff-only, then reinstall
+```
+
+This puts `token-usage-reporter` and `token-usage-api` in `$PREFIX/bin` and copies host wrappers to `$PREFIX/share/token-usage/plugins`. Cargo is required for a source build.
+
 ## Quick start
 
 ```bash
