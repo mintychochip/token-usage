@@ -12,7 +12,8 @@ host wrappers map whatever the host actually emits (a session hook, a global
 and a Rust API persists those observations so later reads return the same
 totals for the same harness/session identity.
 
-Success looks like: Claude Code, Codex, Grok, oh-my-pi, and jcode can each
+Success looks like: Claude Code, Codex, Grok, oh-my-pi, jcode, Hermes,
+OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi can each
 submit usage; a second report for the same identity updates the stored total
 instead of creating a sibling; different harnesses stay distinct and remain
 queryable together.
@@ -40,7 +41,8 @@ queryable together.
 
 - An observation identity is `(harness, session_id)`. The same session string
   under two harnesses is two identities.
-- Named harnesses are Claude Code, Codex, Grok, oh-my-pi, and jcode.
+- Named harnesses are Claude Code, Codex, Grok, oh-my-pi, jcode, Hermes,
+  OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi.
 - Input and output token counts are always present. Extra counts (cache,
   reasoning) are optional.
 - `ObservationSource` is either a per-session plugin report or a harness-global
@@ -72,8 +74,9 @@ queryable together.
 - [x] Domain objects (harness, session, counts, source, completeness)
 - [x] Durable store: ingest, read-back, same-identity merge, distinct harnesses
 - [x] Rust API + reporter CLI
-- [x] Adapters and fixtures for all five named harnesses
+- [x] Adapters and fixtures for all named harnesses
 - [x] Host-native plugin/hook wrappers that call the reporter
+- [x] Hermes Agent, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi adapters
 
 ## Next
 
@@ -94,6 +97,7 @@ queryable together.
 | 2026-08-19 | Shared Rust reporter; host wrappers only exec it | Hosts often cannot load Rust; ingest must stay in one place |
 | 2026-08-19 | Grok session fragments are partial/unknown | Grok Build may not expose a complete session store |
 | 2026-08-19 | Global approximations use reserved `__harness_global__` when the payload has no session | `source` still distinguishes plugin vs global; a real session id is allowed if the host supplies one |
+| 2026-08-19 | Expand named harnesses to include Hermes, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi | Same class of coding-agent hosts with plugin/hook or usage-dump surfaces |
 
 ## Open questions
 

@@ -1,0 +1,16 @@
+{
+  "description": "Sync Pi session stats into the token-usage store",
+  "hooks": {
+    "session_end": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./scripts/report.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

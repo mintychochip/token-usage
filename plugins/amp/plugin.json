@@ -1,0 +1,5 @@
+{
+  "name": "token-usage",
+  "description": "Report Amp token usage to the shared Rust store",
+  "version": "0.1.0"
+}

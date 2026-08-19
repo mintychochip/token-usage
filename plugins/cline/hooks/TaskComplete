@@ -1,0 +1,5 @@
+#!/bin/sh
+# Cline hook scripts are named after the event. Forward stdin to the reporter.
+set -eu
+REPORTER="${TOKEN_USAGE_REPORTER:-token-usage-reporter}"
+exec "$REPORTER" ingest --adapter cline

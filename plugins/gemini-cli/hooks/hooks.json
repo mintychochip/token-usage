@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "name": "token-usage",
+            "type": "command",
+            "command": "$GEMINI_PROJECT_DIR/scripts/report.sh",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
