@@ -27,7 +27,7 @@ A report is the existing wire object (`crates/cli/src/wire.rs`):
 | `output_tokens` | yes | |
 | `source` | yes | `plugin_report` or `harness_global_approximation` |
 | `completeness` | yes | `complete`, `partial`, or `unknown` |
-| `extras` | no | `cache_read`, `cache_write`, `reasoning` when the host sent them |
+| `extras` | no | `cache_read`, `cache_write`, `reasoning`, `tokens_before`, `tokens_after` when the host sent them |
 | `last_synced_at` | no | unix seconds; the remote **should stamp this** so the plugin never clocks |
 
 Same-identity merge is last-write-wins on `(harness, session_id)` (cumulative

@@ -79,6 +79,7 @@ JSON trees under the harness home) and stores each mapped session. Point
 ```bash
 token-usage-reporter sync --harness grok
 token-usage-reporter sync --force
+token-usage-reporter sync --interval 3600   # re-read sessions and `{harness}/usage.json`
 ```
 
 ## Harnesses

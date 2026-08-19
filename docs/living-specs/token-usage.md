@@ -48,7 +48,7 @@ queryable together.
 - Named harnesses are Claude Code, Codex, Grok, oh-my-pi, jcode, Hermes,
   OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi.
 - Input and output token counts are always present. Extra counts (cache,
-  reasoning) are optional.
+  reasoning, tokens before/after compact) are optional.
 - `ObservationSource` is either a per-session plugin report or a harness-global
   approximation.
 - `SessionStoreCompleteness` is `complete`, `partial`, or `unknown`. Grok
@@ -73,6 +73,8 @@ queryable together.
   (`ingest` from stdin/file, `get`, `publish`/`pull`, and the API binary).
 - GitHub transport is `gh gist` / `gh api`. Tests fake `gh` via `TOKEN_USAGE_GH`.
   Public publishes omit `usage.jsonl`.
+- Global `/usage` snapshots live at `{harness-home}/usage.json` and are marked
+  `kind: global_usage`. `sync --interval N` re-scans in a loop (implies force).
 - Tests drive shipped types and the real store/adapters, using fixture JSON
   rather than live harness processes.
 - Do not hard-code expected totals in tests without feeding those totals
@@ -90,11 +92,10 @@ queryable together.
 - [x] `scripts/install.sh` and `scripts/update.sh` prefix installs
 - [x] First-use sync of existing harness sessions plus `last_synced_at`
 - [x] GitHub publish/pull: secret gist (or a directory) holds JSONL; public gist is summary + shields only
+- [x] Optional sync against a harness's own global `/usage` snapshot on a timer (`{harness}/usage.json`, `sync --interval`)
+- [x] Compaction-aware extra counts (tokens before/after compact)
 
 ## Next
-
-- [ ] Optional sync against a harness's own global `/usage` snapshot on a timer
-- [ ] Compaction-aware extra counts (tokens before/after compact)
 - [x] Stateless hosted adapt API (`TOKEN_USAGE_STATELESS`); storage stays client-owned
 - [x] JSONL export/import as the user-managed observation format
 - [x] Summary/shields export so usage can be gist’d or charted without a hosted DB
@@ -121,6 +122,8 @@ queryable together.
 | 2026-08-19 | Hosted API (api.mintychochip.dev) is stateless; users keep FileStore or JSONL | Do not store anyone's usage on the domain; adapt only |
 | 2026-08-19 | Do not require a hosted API; expose usage via summary/shields JSON on GitHub | Sync is local; charts/gists are files the user publishes |
 | 2026-08-19 | GitHub is the remote: `publish`/`pull` via gist (`gh`) or a directory | Ingest stays FileStore; no usage DB on mintychochip.dev. Secret gist includes `usage.jsonl`; public gist is summary + badge only |
+| 2026-08-19 | `{harness-home}/usage.json` is the global `/usage` snapshot; `sync --interval` re-reads it | Hosts dump a global approximation separately from session logs |
+| 2026-08-19 | ExtraCounts.tokens_before/after copy Grok `totalTokensBeforeCompaction` / `contextTokensUsed` | Do not invent counts; only map fields the host already sent |
 
 ## Open questions
 
