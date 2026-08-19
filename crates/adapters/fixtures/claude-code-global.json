@@ -1,0 +1,6 @@
+{
+  "kind": "global_usage",
+  "period": "all",
+  "input_tokens": 100000,
+  "output_tokens": 25000
+}

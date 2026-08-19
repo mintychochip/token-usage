@@ -1,0 +1,12 @@
+{
+  "session_id": "cc-sess-1",
+  "hook_event_name": "Stop",
+  "transcript_path": "/Users/dev/.claude/projects/foo/cc-sess-1.jsonl",
+  "cwd": "/Users/dev/foo",
+  "usage": {
+    "input_tokens": 12345,
+    "output_tokens": 678,
+    "cache_read_input_tokens": 4000,
+    "cache_creation_input_tokens": 200
+  }
+}

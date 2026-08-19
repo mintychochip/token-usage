@@ -70,9 +70,9 @@ queryable together.
 
 - [x] Living domain catalog for cross-harness token usage
 - [x] Domain objects (harness, session, counts, source, completeness)
-- [ ] Durable store: ingest, read-back, same-identity merge, distinct harnesses
+- [x] Durable store: ingest, read-back, same-identity merge, distinct harnesses
 - [ ] Rust API + reporter CLI
-- [ ] Adapters and fixtures for all five named harnesses
+- [x] Adapters and fixtures for all five named harnesses
 - [ ] Host-native plugin/hook wrappers that call the reporter
 
 ## Next

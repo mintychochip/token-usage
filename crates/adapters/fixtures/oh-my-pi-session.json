@@ -1,0 +1,9 @@
+{
+  "sessionId": "omp-123",
+  "scope": "session",
+  "stats": {
+    "inputTokens": 5000,
+    "outputTokens": 800,
+    "cacheReadTokens": 1200
+  }
+}

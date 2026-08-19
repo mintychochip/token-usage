@@ -1,0 +1,10 @@
+{
+  "session_id": "thr_abc",
+  "hook_event_name": "Stop",
+  "model": "gpt-5.4",
+  "token_usage": {
+    "input_tokens": 9000,
+    "output_tokens": 1100,
+    "cached_input_tokens": 3000
+  }
+}
