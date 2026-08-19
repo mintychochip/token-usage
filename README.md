@@ -41,14 +41,21 @@ TOKEN_USAGE_STORE=./store.json cargo run -p token-usage-cli --bin token-usage-re
   ingest --adapter hermes --file crates/adapters/fixtures/hermes-session.json
 ```
 
-`POST /v1/adapt/{harness}` maps a host payload and **writes nothing** (this is
-what a public host like `api.mintychochip.dev` should run, with
-`TOKEN_USAGE_STATELESS=1`).  
-`POST /v1/observations` / `POST /v1/ingest/{harness}` persist only when the
-API was started with a local store — the hosted API does not store usage.  
-`GET /v1/sessions` lists the **local** store.  
-`token-usage-reporter export` / `import` are JSONL (`WireObservation` per
-line) so you can keep and move the file yourself.
+You do **not** need a hosted API. Plugins write a **local** store. To expose
+usage (gist, GitHub Pages, shields.io, charts), export a snapshot you own:
+
+```bash
+token-usage-reporter export --format summary --file usage-summary.json
+token-usage-reporter export --format shields --file usage-badge.json
+token-usage-reporter export --format jsonl --file usage.jsonl   # full sessions
+```
+
+`summary` is per-harness totals with **no session ids** — safe to commit or
+gist. Point shields.io at a raw gist/Pages URL of `usage-badge.json`.
+
+A local `token-usage-api` still exists if you want HTTP on loopback. A public
+`api.mintychochip.dev` is optional and should stay `TOKEN_USAGE_STATELESS=1`
+if you run one at all.
 
 On first ingest or `list` for a harness, the reporter walks that host's on-disk
 sessions (Grok `signals.json`, Pi/oh-my-pi JSONL, Codex/Claude JSONL, and other

@@ -111,8 +111,19 @@ option 1 or 2. Do not make this the plugin’s store.
 
 ## Recommendation
 
-**Primary remote target: a stateless HTTP adapt API** (e.g.
-`https://api.mintychochip.dev`) plus **client-owned storage**.
+**Primary target: client-owned files, not a hosted usage API.**
+
+You do not need `api.mintychochip.dev` for sync. The reporter writes a local
+`FileStore`. To expose usage, export JSON you can gist, commit, or chart:
+
+- `export --format summary` — per-harness totals, no session ids
+- `export --format shields` — shields.io endpoint JSON
+- `export --format jsonl` — full sessions for backup/import
+
+A public HTTP API is optional. If you run one, keep it `TOKEN_USAGE_STATELESS=1`
+(adapt only, no store). The previous “primary remote” of posting totals to a
+hosted FileStore is **not** the product: it would keep usage on someone else’s
+disk.
 
 The hosted process sets `TOKEN_USAGE_STATELESS=1`. It accepts:
 

@@ -93,7 +93,7 @@ queryable together.
 - [ ] Compaction-aware extra counts (tokens before/after compact)
 - [x] Stateless hosted adapt API (`TOKEN_USAGE_STATELESS`); storage stays client-owned
 - [x] JSONL export/import as the user-managed observation format
-- [ ] Reporter POST to `api.mintychochip.dev` then write the local store (plugins stay exec-only)
+- [x] Summary/shields export so usage can be gist’d or charted without a hosted DB
 
 ## Future
 
@@ -115,6 +115,7 @@ queryable together.
 | 2026-08-19 | First ingest/list scans all discoverable host sessions; stamp last_synced_at | Users already have history in Grok/Pi/omp/Codex stores; hooks only see the active session |
 | 2026-08-19 | Remote format: HTTP POST of existing WireObservation; plugins stay `exec token-usage-reporter ingest` | FileStore is the state to front, not hook JSON; no new domain. See docs/remote-format.md |
 | 2026-08-19 | Hosted API (api.mintychochip.dev) is stateless; users keep FileStore or JSONL | Do not store anyone's usage on the domain; adapt only |
+| 2026-08-19 | Do not require a hosted API; expose usage via summary/shields JSON on GitHub | Sync is local; charts/gists are files the user publishes |
 
 ## Open questions
 
