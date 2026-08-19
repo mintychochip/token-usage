@@ -1,0 +1,100 @@
+//! A single usage observation and its identity.
+
+use serde::{Deserialize, Serialize};
+
+use crate::{Harness, SessionId, UsageCounts};
+
+/// Where an observation came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ObservationSource {
+    /// A per-session plugin / hook report.
+    PluginReport,
+    /// A harness-wide `/usage` (or equivalent) approximation, not a session log.
+    HarnessGlobalApproximation,
+}
+
+/// How complete the host's session store is for this observation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionStoreCompleteness {
+    /// The host exposed a complete per-session record.
+    Complete,
+    /// Some session fields are present; others are missing or inferred.
+    Partial,
+    /// The host did not expose a usable session store (e.g. Grok Build).
+    Unknown,
+}
+
+/// Identity of a stored usage total: one harness and one session.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ObservationIdentity {
+    harness: Harness,
+    session_id: SessionId,
+}
+
+impl ObservationIdentity {
+    /// Bind a session id to a harness.
+    pub fn new(harness: Harness, session_id: SessionId) -> Self {
+        Self {
+            harness,
+            session_id,
+        }
+    }
+
+    /// The harness this identity belongs to.
+    pub fn harness(&self) -> Harness {
+        self.harness
+    }
+
+    /// The session id within that harness.
+    pub fn session_id(&self) -> &SessionId {
+        &self.session_id
+    }
+}
+
+/// One usage snapshot from a harness plugin or a global approximation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UsageObservation {
+    identity: ObservationIdentity,
+    counts: UsageCounts,
+    source: ObservationSource,
+    completeness: SessionStoreCompleteness,
+}
+
+impl UsageObservation {
+    /// Construct an observation. All fields are required; extras live on `counts`.
+    pub fn new(
+        identity: ObservationIdentity,
+        counts: UsageCounts,
+        source: ObservationSource,
+        completeness: SessionStoreCompleteness,
+    ) -> Self {
+        Self {
+            identity,
+            counts,
+            source,
+            completeness,
+        }
+    }
+
+    /// Identity used for store lookup and merge.
+    pub fn identity(&self) -> &ObservationIdentity {
+        &self.identity
+    }
+
+    /// Token totals on this observation.
+    pub fn counts(&self) -> &UsageCounts {
+        &self.counts
+    }
+
+    /// Plugin report vs harness-global approximation.
+    pub fn source(&self) -> ObservationSource {
+        self.source
+    }
+
+    /// How complete the host session store was.
+    pub fn completeness(&self) -> SessionStoreCompleteness {
+        self.completeness
+    }
+}
