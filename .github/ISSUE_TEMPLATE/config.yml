@@ -1,1 +1,8 @@
 blank_issues_enabled: true
+contact_links:
+  - name: Living spec
+    url: https://github.com/mintychochip/token-usage/blob/master/docs/living-specs/token-usage.md
+    about: Design intent, invariants, and which harnesses are in scope
+  - name: Contributing guide
+    url: https://github.com/mintychochip/token-usage/blob/master/CONTRIBUTING.md
+    about: How to add a harness, run tests, and open a PR

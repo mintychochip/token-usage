@@ -1,13 +1,19 @@
 # token-usage
 
-A shared store for coding-agent token usage. Plugins and host wrappers map
-whatever a harness emits (a session hook, a global `/usage` snapshot, or a
-partial session fragment) into one observation. A Rust API persists it so a
-later read returns the same totals for the same harness/session identity.
+[![CI](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml/badge.svg)](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml)
+
+Cross-harness token-usage store. Plugins map whatever a coding agent emits — a
+session hook, a global `/usage` snapshot, or a partial session fragment — into
+one observation. A Rust API persists it so a later read returns the same
+totals for the same harness/session identity.
+
+Repository: [github.com/mintychochip/token-usage](https://github.com/mintychochip/token-usage)
 
 ## Quick start
 
 ```bash
+git clone https://github.com/mintychochip/token-usage.git
+cd token-usage
 cargo build --workspace
 TOKEN_USAGE_STORE=./store.json TOKEN_USAGE_BIND=127.0.0.1:9473 \
   cargo run -p token-usage-cli --bin token-usage-api
