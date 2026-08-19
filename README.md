@@ -41,17 +41,30 @@ TOKEN_USAGE_STORE=./store.json cargo run -p token-usage-cli --bin token-usage-re
   ingest --adapter hermes --file crates/adapters/fixtures/hermes-session.json
 ```
 
-You do **not** need a hosted API. Plugins write a **local** store. To expose
-usage (gist, GitHub Pages, shields.io, charts), export a snapshot you own:
+You do **not** need a hosted API. Plugins write a **local** store. GitHub is
+the remote: a gist or a directory you commit. `gh` must be logged in.
+
+```bash
+token-usage-reporter publish --gist            # secret gist (includes sessions)
+token-usage-reporter publish --gist --public   # summary + shields badge only
+token-usage-reporter pull --gist               # restore sessions from that gist
+
+token-usage-reporter publish --dir ./usage     # files you commit / GitHub Pages
+token-usage-reporter pull --dir ./usage
+```
+
+A secret gist (the default) has `usage.jsonl` so another machine can `pull`.
+`--public` drops session ids and cannot be pulled back. The gist id is saved
+next to the store as `github.json`. Point shields.io at the raw gist URL of
+`usage-badge.json`.
+
+Lower-level `export` / `import` still write the same files without `gh`:
 
 ```bash
 token-usage-reporter export --format summary --file usage-summary.json
 token-usage-reporter export --format shields --file usage-badge.json
-token-usage-reporter export --format jsonl --file usage.jsonl   # full sessions
+token-usage-reporter export --format jsonl --file usage.jsonl
 ```
-
-`summary` is per-harness totals with **no session ids** — safe to commit or
-gist. Point shields.io at a raw gist/Pages URL of `usage-badge.json`.
 
 A local `token-usage-api` still exists if you want HTTP on loopback. A public
 `api.mintychochip.dev` is optional and should stay `TOKEN_USAGE_STATELESS=1`

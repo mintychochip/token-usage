@@ -25,6 +25,7 @@ queryable together.
 - Domain objects for harness, session, counts (plus optional extras), source,
   and session-store completeness
 - Durable local store with sync-on-same-identity
+- Publish/pull to a user-owned GitHub gist or a directory they commit
 - Thin Rust HTTP API and a reporter CLI that plugins exec
 - Adapters for representative harness payloads
 - Host-native wrappers (hooks/manifests/scripts) that invoke the reporter
@@ -69,7 +70,9 @@ queryable together.
 - Same-identity sync is last-write-wins on counts, source, and completeness
   (harness reports are cumulative snapshots, not deltas).
 - API is a thin I/O layer over the store. Reporter is the plugin entry point
-  (`ingest` from stdin/file, `get`, and the API binary).
+  (`ingest` from stdin/file, `get`, `publish`/`pull`, and the API binary).
+- GitHub transport is `gh gist` / `gh api`. Tests fake `gh` via `TOKEN_USAGE_GH`.
+  Public publishes omit `usage.jsonl`.
 - Tests drive shipped types and the real store/adapters, using fixture JSON
   rather than live harness processes.
 - Do not hard-code expected totals in tests without feeding those totals
@@ -86,6 +89,7 @@ queryable together.
 - [x] Hermes Agent, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi adapters
 - [x] `scripts/install.sh` and `scripts/update.sh` prefix installs
 - [x] First-use sync of existing harness sessions plus `last_synced_at`
+- [x] GitHub publish/pull: secret gist (or a directory) holds JSONL; public gist is summary + shields only
 
 ## Next
 
@@ -98,7 +102,7 @@ queryable together.
 ## Future
 
 - [ ] Billing/pricing tables and a usage TUI
-- [ ] Multi-machine replication
+- [ ] Multi-machine replication beyond gist/dir pull
 - [ ] Auth and multi-user tenancy
 - [ ] Object-store PUT per identity (fallback if no always-on HTTP)
 - [ ] Append-only JSONL audit log reduced by identity
@@ -116,6 +120,7 @@ queryable together.
 | 2026-08-19 | Remote format: HTTP POST of existing WireObservation; plugins stay `exec token-usage-reporter ingest` | FileStore is the state to front, not hook JSON; no new domain. See docs/remote-format.md |
 | 2026-08-19 | Hosted API (api.mintychochip.dev) is stateless; users keep FileStore or JSONL | Do not store anyone's usage on the domain; adapt only |
 | 2026-08-19 | Do not require a hosted API; expose usage via summary/shields JSON on GitHub | Sync is local; charts/gists are files the user publishes |
+| 2026-08-19 | GitHub is the remote: `publish`/`pull` via gist (`gh`) or a directory | Ingest stays FileStore; no usage DB on mintychochip.dev. Secret gist includes `usage.jsonl`; public gist is summary + badge only |
 
 ## Open questions
 

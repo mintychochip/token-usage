@@ -1,6 +1,6 @@
 # Remote usage format — plugins stay stateless
 
-> Status: research (format chosen; backend not implemented)
+> Status: GitHub publish/pull implemented; hosted usage API is not the product
 > Last updated: 2026-08-19
 
 Host plugins must not grow a local usage database, last-synced file, or
@@ -111,10 +111,23 @@ option 1 or 2. Do not make this the plugin’s store.
 
 ## Recommendation
 
-**Primary target: client-owned files, not a hosted usage API.**
+**Primary remote: GitHub (gist or a committed directory). Ingest stays local.**
 
 You do not need `api.mintychochip.dev` for sync. The reporter writes a local
-`FileStore`. To expose usage, export JSON you can gist, commit, or chart:
+`FileStore`, then `publish` / `pull` copies it to GitHub:
+
+```bash
+token-usage-reporter publish --gist            # needs `gh`; secret gist includes JSONL
+token-usage-reporter publish --gist --public   # usage-summary.json + usage-badge.json
+token-usage-reporter pull --gist
+token-usage-reporter publish --dir ./usage
+```
+
+`gh` is the transport (`TOKEN_USAGE_GH` overrides the binary). The gist id is
+remembered in `github.json` next to the store. A public gist never includes
+`usage.jsonl` — session ids stay off the public internet.
+
+The same files can still be written without `gh`:
 
 - `export --format summary` — per-harness totals, no session ids
 - `export --format shields` — shields.io endpoint JSON
@@ -134,11 +147,12 @@ The hosted process sets `TOKEN_USAGE_STATELESS=1`. It accepts:
 `GET /v1/sessions` returns `501` (`stateless api: no store`). Nothing is
 kept on the API host.
 
-Totals live on the machine that ran the reporter:
+Totals live on the machine that ran the reporter, plus whatever GitHub
+target the user published:
 
 - default: local `FileStore` (`TOKEN_USAGE_STORE`, usually `~/.token-usage/store.json`)
-- portable: one `WireObservation` per line (`token-usage-reporter export` /
-  `import`)
+- GitHub: `publish --gist` (secret JSONL) or `publish --dir`
+- portable: one `WireObservation` per line (`export` / `import`)
 
 Plugins stay:
 
@@ -146,14 +160,13 @@ Plugins stay:
 exec "$REPORTER" ingest --adapter <harness>
 ```
 
-**Why this one:** the plugin still does not manage state; the API does not
-hold anyone's usage; the user owns the JSON/JSONL. Last-write-wins stays in
-the local store. Object-store PUT is a fallback if they want files they
-manage elsewhere. JSONL export is that managed format.
+**Why this one:** the plugin still does not manage state; GitHub holds files
+the user owns; mintychochip.dev never stores totals. Last-write-wins stays in
+the local store. `pull` is last-write-wins ingest of the published JSONL.
 
 **What each report must send** (do not invent a domain): `harness`,
 `session_id`, `input_tokens`, `output_tokens`, `source`, `completeness`,
-and `extras` when present. `last_synced_at` is assigned by the remote ingest.
+and `extras` when present. `last_synced_at` is assigned on local ingest.
 
 ---
 
@@ -164,6 +177,6 @@ and `extras` when present. `last_synced_at` is assigned by the remote ingest.
 - Plugin wrappers (they already do not manage FileStore)
 - Last-write-wins identity rules
 
-Implementation of a hosted API, object-store PUT, auth, and multi-machine
-replication stays **out of scope** until promoted out of Future in the living
-spec. This document only chooses the format.
+`publish` / `pull` is implemented. A hosted usage database, object-store PUT,
+auth, and richer multi-machine replication stay **out of scope** until
+promoted out of Future in the living spec.

@@ -52,7 +52,7 @@ fn remote_report_fields_are_the_existing_wire_observation() {
 }
 
 #[test]
-fn remote_format_doc_recommends_http_api_and_keeps_plugins_stateless() {
+fn remote_format_doc_recommends_github_and_keeps_plugins_stateless() {
     let path = format!("{}/../../docs/remote-format.md", env!("CARGO_MANIFEST_DIR"));
     let doc = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"));
     assert!(
@@ -80,8 +80,8 @@ fn remote_format_doc_recommends_http_api_and_keeps_plugins_stateless() {
         "{path} must contain a Recommendation section"
     );
     assert!(
-        doc.contains("POST /v1/observations") && doc.contains("WireObservation"),
-        "recommendation must name the HTTP API and WireObservation"
+        doc.contains("publish --gist") && doc.contains("WireObservation"),
+        "recommendation must name GitHub gist publish and WireObservation"
     );
     for field in [
         "harness",
