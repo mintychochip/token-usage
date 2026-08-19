@@ -71,6 +71,9 @@ enum Command {
         /// Scan even if this harness was synced before.
         #[arg(long)]
         force: bool,
+        /// Re-run the scan every N seconds (includes `{harness}/usage.json` global snapshots).
+        #[arg(long)]
+        interval: Option<u64>,
     },
     /// Push the local store to a directory or a GitHub gist (`gh`).
     Publish {
@@ -202,29 +205,44 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .collect();
             println!("{}", serde_json::to_string_pretty(&sessions)?);
         }
-        Command::Sync { harness, force } => {
-            let now = unix_now();
-            if let Some(name) = harness {
-                let harness = Harness::parse(&name)?;
-                if force || store.needs_first_sync(harness)? {
-                    sync_harness(&store, harness, &roots, now)?;
-                }
-            } else if force {
-                sync_all(&store, &roots, now)?;
-            } else {
-                sync_all_needed(&store, &roots, now)?;
+        Command::Sync {
+            harness,
+            force,
+            interval,
+        } => {
+            if matches!(interval, Some(0)) {
+                return Err("interval must be greater than 0".into());
             }
-            let status = WireSyncStatus {
-                harnesses: store
-                    .list_harness_syncs()?
-                    .into_iter()
-                    .map(|row| WireHarnessSync {
-                        harness: row.harness,
-                        last_synced_at: row.last_synced_at,
-                    })
-                    .collect(),
-            };
-            println!("{}", serde_json::to_string_pretty(&status)?);
+            loop {
+                let now = unix_now();
+                // A timer is a repeating scan; --interval implies --force after the first tick.
+                let rescan = force || interval.is_some();
+                if let Some(name) = harness.as_deref() {
+                    let harness = Harness::parse(name)?;
+                    if rescan || store.needs_first_sync(harness)? {
+                        sync_harness(&store, harness, &roots, now)?;
+                    }
+                } else if rescan {
+                    sync_all(&store, &roots, now)?;
+                } else {
+                    sync_all_needed(&store, &roots, now)?;
+                }
+                let status = WireSyncStatus {
+                    harnesses: store
+                        .list_harness_syncs()?
+                        .into_iter()
+                        .map(|row| WireHarnessSync {
+                            harness: row.harness,
+                            last_synced_at: row.last_synced_at,
+                        })
+                        .collect(),
+                };
+                println!("{}", serde_json::to_string_pretty(&status)?);
+                match interval {
+                    Some(secs) => std::thread::sleep(std::time::Duration::from_secs(secs)),
+                    None => break,
+                }
+            }
         }
         Command::Publish { dir, gist, public } => {
             let bundle = bundle_from_store(&store, unix_now())?;

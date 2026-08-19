@@ -108,29 +108,67 @@ pub fn sync_all(
 /// JSON payloads found on disk for `harness`. One payload per session file.
 pub fn discover(harness: Harness, roots: &SyncRoots) -> Result<Vec<Value>, SyncError> {
     let home = &roots.home;
-    match harness {
-        Harness::Grok => discover_grok(home),
-        Harness::Pi => discover_jsonl(home.join(".pi/agent/sessions")),
-        Harness::OhMyPi => discover_jsonl(home.join(".omp/agent/sessions")),
-        Harness::ClaudeCode => discover_jsonl(home.join(".claude/projects")),
-        Harness::Codex => discover_jsonl(home.join(".codex/sessions")),
-        Harness::Hermes => discover_json_tree(home.join(".hermes")),
+    let mut payloads = match harness {
+        Harness::Grok => discover_grok(home)?,
+        Harness::Pi => discover_jsonl(home.join(".pi/agent/sessions"))?,
+        Harness::OhMyPi => discover_jsonl(home.join(".omp/agent/sessions"))?,
+        Harness::ClaudeCode => discover_jsonl(home.join(".claude/projects"))?,
+        Harness::Codex => discover_jsonl(home.join(".codex/sessions"))?,
+        Harness::Hermes => discover_json_tree(home.join(".hermes"))?,
         Harness::OpenCode => {
             let mut out = discover_json_tree(home.join(".opencode"))?;
             out.extend(discover_json_tree(home.join(".local/share/opencode"))?);
-            Ok(out)
+            out
         }
-        Harness::GeminiCli => discover_json_tree(home.join(".gemini")),
+        Harness::GeminiCli => discover_json_tree(home.join(".gemini"))?,
         Harness::Goose => {
             let mut out = discover_json_tree(home.join(".config/goose"))?;
             out.extend(discover_json_tree(home.join(".local/share/goose"))?);
-            Ok(out)
+            out
         }
-        Harness::Amp => discover_json_tree(home.join(".amp")),
-        Harness::Droid => discover_json_tree(home.join(".factory")),
-        Harness::Cline => discover_json_tree(home.join(".cline")),
-        Harness::Aider => discover_json_tree(home.join(".aider")),
-        Harness::Jcode => discover_json_tree(home.join(".jcode")),
+        Harness::Amp => discover_json_tree(home.join(".amp"))?,
+        Harness::Droid => discover_json_tree(home.join(".factory"))?,
+        Harness::Cline => discover_json_tree(home.join(".cline"))?,
+        Harness::Aider => discover_json_tree(home.join(".aider"))?,
+        Harness::Jcode => discover_json_tree(home.join(".jcode"))?,
+    };
+    payloads.extend(discover_global_usage(harness, home)?);
+    Ok(payloads)
+}
+
+/// Reserved `{harness-dir}/usage.json` — a host-wide `/usage` snapshot, not a session.
+fn discover_global_usage(harness: Harness, home: &Path) -> Result<Vec<Value>, SyncError> {
+    let path = harness_home(harness, home).join("usage.json");
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let mut value: Value = serde_json::from_str(&fs::read_to_string(&path)?)?;
+    if !looks_like_usage(&value) {
+        return Ok(Vec::new());
+    }
+    if let Some(obj) = value.as_object_mut() {
+        obj.entry("kind".to_string())
+            .or_insert_with(|| json!("global_usage"));
+    }
+    Ok(vec![value])
+}
+
+fn harness_home(harness: Harness, home: &Path) -> PathBuf {
+    match harness {
+        Harness::ClaudeCode => home.join(".claude"),
+        Harness::Codex => home.join(".codex"),
+        Harness::Grok => home.join(".grok"),
+        Harness::OhMyPi => home.join(".omp"),
+        Harness::Jcode => home.join(".jcode"),
+        Harness::Hermes => home.join(".hermes"),
+        Harness::OpenCode => home.join(".opencode"),
+        Harness::GeminiCli => home.join(".gemini"),
+        Harness::Aider => home.join(".aider"),
+        Harness::Goose => home.join(".config/goose"),
+        Harness::Amp => home.join(".amp"),
+        Harness::Droid => home.join(".factory"),
+        Harness::Cline => home.join(".cline"),
+        Harness::Pi => home.join(".pi"),
     }
 }
 

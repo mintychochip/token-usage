@@ -102,6 +102,51 @@ fn oh_my_pi_historical_session_is_synced() {
 }
 
 #[test]
+fn claude_usage_json_is_ingested_as_a_global_approximation() {
+    let dir = tempdir().unwrap();
+    let home = dir.path().join("home");
+    std::fs::create_dir_all(home.join(".claude")).unwrap();
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../adapters/fixtures/claude-code-global.json");
+    let expected: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&fixture).unwrap()).unwrap();
+    std::fs::copy(&fixture, home.join(".claude/usage.json")).unwrap();
+
+    let store = FileStore::open(dir.path().join("store.json")).unwrap();
+    let report = sync_harness(
+        &store,
+        Harness::ClaudeCode,
+        &SyncRoots { home },
+        1_700_000_100,
+    )
+    .unwrap();
+    assert!(
+        report.ingested >= 1,
+        "global usage.json must be ingested, got {report:?}"
+    );
+
+    let loaded = store
+        .get(&ObservationIdentity::new(
+            Harness::ClaudeCode,
+            SessionId::harness_global(),
+        ))
+        .unwrap()
+        .expect("claude-code __harness_global__");
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        expected["input_tokens"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.counts().output_tokens(),
+        expected["output_tokens"].as_u64().unwrap()
+    );
+    assert_eq!(
+        loaded.source(),
+        token_usage_domain::ObservationSource::HarnessGlobalApproximation
+    );
+}
+
+#[test]
 fn first_use_syncs_only_harnesses_that_have_never_been_scanned() {
     let (_dir, store) = open_store();
     sync_harness(&store, Harness::Grok, &roots(), 1).unwrap();

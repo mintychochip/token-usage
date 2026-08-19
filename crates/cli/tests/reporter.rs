@@ -227,6 +227,80 @@ fn export_jsonl_round_trips_through_import_into_a_new_local_store() {
 }
 
 #[test]
+fn sync_interval_rereads_a_changed_global_usage_file() {
+    let dir = tempdir().unwrap();
+    let store = dir.path().join("store.json");
+    let home = dir.path().join("home");
+    std::fs::create_dir_all(home.join(".claude")).unwrap();
+    let usage = home.join(".claude/usage.json");
+    std::fs::write(
+        &usage,
+        r#"{"kind":"global_usage","input_tokens":100,"output_tokens":10}"#,
+    )
+    .unwrap();
+
+    let mut child = reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&home)
+        .args([
+            "sync",
+            "--harness",
+            "claude-code",
+            "--force",
+            "--interval",
+            "1",
+        ])
+        .spawn()
+        .unwrap();
+
+    let first = wait_for_input(&store, &home, 100, 8);
+    assert!(first, "first tick must ingest 100 from usage.json");
+
+    std::fs::write(
+        &usage,
+        r#"{"kind":"global_usage","input_tokens":250,"output_tokens":20}"#,
+    )
+    .unwrap();
+    let second = wait_for_input(&store, &home, 250, 8);
+    let _ = child.kill();
+    let _ = child.wait();
+    assert!(
+        second,
+        "later tick must ingest the updated 250 from usage.json"
+    );
+}
+
+fn wait_for_input(store: &std::path::Path, home: &std::path::Path, input: u64, secs: u64) -> bool {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(secs);
+    while std::time::Instant::now() < deadline {
+        let get = reporter()
+            .arg("--store")
+            .arg(store)
+            .arg("--home")
+            .arg(home)
+            .args([
+                "get",
+                "--harness",
+                "claude-code",
+                "--session",
+                "__harness_global__",
+            ])
+            .output()
+            .unwrap();
+        if get.status.success() {
+            let body = String::from_utf8_lossy(&get.stdout);
+            if body.contains(&input.to_string()) {
+                return true;
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    false
+}
+
+#[test]
 fn export_summary_is_chartable_and_has_no_session_ids() {
     let dir = tempdir().unwrap();
     let store = dir.path().join("store.json");
