@@ -73,7 +73,11 @@ fn reporter_reads_stdin_for_plugin_hooks() {
         .write_all(fixture.as_bytes())
         .unwrap();
     let out = child.wait_with_output().unwrap();
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let body = String::from_utf8_lossy(&out.stdout);
     assert!(body.contains("4200"), "{body}");
     assert!(body.contains("900"), "{body}");

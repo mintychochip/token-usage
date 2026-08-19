@@ -10,7 +10,10 @@ use token_usage_domain::{Harness, ObservationIdentity, SessionId};
 use token_usage_store::FileStore;
 
 #[derive(Parser)]
-#[command(name = "token-usage-reporter", about = "Report harness token usage into the shared store")]
+#[command(
+    name = "token-usage-reporter",
+    about = "Report harness token usage into the shared store"
+)]
 struct Cli {
     /// Path to the durable store (JSON file).
     #[arg(long, env = "TOKEN_USAGE_STORE", global = true)]

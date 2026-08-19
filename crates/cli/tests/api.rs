@@ -2,7 +2,6 @@
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
@@ -12,8 +11,8 @@ use http_body_util::BodyExt;
 use tempfile::tempdir;
 use token_usage_cli::{app, ApiState, WireObservation};
 use token_usage_domain::{
-    ExtraCounts, Harness, ObservationSource, SessionStoreCompleteness, UsageCounts,
-    UsageObservation, ObservationIdentity, SessionId,
+    ExtraCounts, Harness, ObservationIdentity, ObservationSource, SessionId,
+    SessionStoreCompleteness, UsageCounts, UsageObservation,
 };
 use token_usage_store::FileStore;
 use tower::ServiceExt;
@@ -78,9 +77,8 @@ async fn router_post_then_get_returns_submitted_counts() {
 fn api_binary_roundtrip_returns_submitted_identity_and_counts() {
     let dir = tempdir().unwrap();
     let store = dir.path().join("store.json");
-    let child = spawn_api(&store);
-    let _guard = KillOnDrop(child.id());
-    let addr = read_listen_addr(&child);
+    let _guard = KillOnDrop(spawn_api(&store));
+    let addr = read_listen_addr();
     let body = serde_json::json!({
         "harness": "grok",
         "session_id": "sess-launch",
@@ -118,7 +116,7 @@ fn spawn_api(store: &std::path::Path) -> std::process::Child {
     child
 }
 
-fn read_listen_addr(_child: &std::process::Child) -> String {
+fn read_listen_addr() -> String {
     let stdout = LISTEN_STDOUT.lock().unwrap().take().expect("api stdout");
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
@@ -166,23 +164,15 @@ fn http_json(method: &str, addr: &str, path: &str, body: Option<&str>) -> (u16, 
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-    let body = resp
-        .split("\r\n\r\n")
-        .nth(1)
-        .unwrap_or(&resp)
-        .to_string();
+    let body = resp.split("\r\n\r\n").nth(1).unwrap_or(&resp).to_string();
     (status, body)
 }
 
-struct KillOnDrop(u32);
+struct KillOnDrop(std::process::Child);
 
 impl Drop for KillOnDrop {
     fn drop(&mut self) {
-        let _ = Command::new("kill").arg(self.0.to_string()).status();
+        let _ = self.0.kill();
+        let _ = self.0.wait();
     }
-}
-
-#[allow(dead_code)]
-fn _store_path_typecheck() -> PathBuf {
-    PathBuf::new()
 }

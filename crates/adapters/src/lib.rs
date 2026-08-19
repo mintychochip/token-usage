@@ -51,11 +51,7 @@ pub fn adapt_claude_code(payload: &Value) -> Result<UsageObservation, AdaptError
         usage,
         &["input_tokens", "inputTokens"],
         &["output_tokens", "outputTokens"],
-        &[
-            "cache_read_input_tokens",
-            "cacheReadTokens",
-            "cache_read",
-        ],
+        &["cache_read_input_tokens", "cacheReadTokens", "cache_read"],
         &[
             "cache_creation_input_tokens",
             "cache_write",
@@ -260,8 +256,10 @@ fn grok_context_counts(
 }
 
 fn is_global(payload: &Value) -> bool {
-    matches!(payload.get("kind").and_then(Value::as_str), Some("global_usage"))
-        || matches!(payload.get("scope").and_then(Value::as_str), Some("global"))
+    matches!(
+        payload.get("kind").and_then(Value::as_str),
+        Some("global_usage")
+    ) || matches!(payload.get("scope").and_then(Value::as_str), Some("global"))
 }
 
 fn session_id(payload: &Value) -> Result<SessionId, AdaptError> {
@@ -277,8 +275,16 @@ fn session_id(payload: &Value) -> Result<SessionId, AdaptError> {
         ],
     )
     .or_else(|| payload.pointer("/session/id").and_then(Value::as_str))
-    .or_else(|| payload.pointer("/properties/sessionId").and_then(Value::as_str))
-    .or_else(|| payload.pointer("/properties/session_id").and_then(Value::as_str))
+    .or_else(|| {
+        payload
+            .pointer("/properties/sessionId")
+            .and_then(Value::as_str)
+    })
+    .or_else(|| {
+        payload
+            .pointer("/properties/session_id")
+            .and_then(Value::as_str)
+    })
     .ok_or(AdaptError::MissingSessionId)?;
     SessionId::parse(raw).map_err(|_| AdaptError::MissingSessionId)
 }
@@ -349,7 +355,11 @@ fn extract_counts(usage: &Value) -> Result<UsageCounts, AdaptError> {
             "output",
         ],
         &[],
-        &["cache_write", "cacheWriteTokens", "cache_creation_input_tokens"],
+        &[
+            "cache_write",
+            "cacheWriteTokens",
+            "cache_creation_input_tokens",
+        ],
         &["reasoning_tokens", "reasoning"],
     )
     .map(|counts| {
@@ -373,7 +383,8 @@ fn first_object<'a>(payload: &'a Value, keys: &[&str]) -> Option<&'a Value> {
 }
 
 fn first_str<'a>(payload: &'a Value, keys: &[&str]) -> Option<&'a str> {
-    keys.iter().find_map(|key| payload.get(*key).and_then(Value::as_str))
+    keys.iter()
+        .find_map(|key| payload.get(*key).and_then(Value::as_str))
 }
 
 fn first_u64(payload: &Value, keys: &[&str]) -> Option<u64> {

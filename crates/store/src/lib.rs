@@ -42,7 +42,13 @@ impl FileStore {
             }
         }
         if !path.exists() {
-            write_atomic(&path, &StoreFile { version: 1, sessions: Vec::new() })?;
+            write_atomic(
+                &path,
+                &StoreFile {
+                    version: 1,
+                    sessions: Vec::new(),
+                },
+            )?;
         }
         Ok(Self {
             path,
@@ -69,7 +75,10 @@ impl FileStore {
     }
 
     /// Read the stored total for `identity`, if any.
-    pub fn get(&self, identity: &ObservationIdentity) -> Result<Option<UsageObservation>, StoreError> {
+    pub fn get(
+        &self,
+        identity: &ObservationIdentity,
+    ) -> Result<Option<UsageObservation>, StoreError> {
         let _guard = self.lock.lock().expect("store lock");
         let file = self.load()?;
         Ok(file

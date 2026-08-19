@@ -1,8 +1,8 @@
 //! Construction and identity rules for usage observations.
 
 use token_usage_domain::{
-    DomainError, ExtraCounts, Harness, ObservationIdentity, ObservationSource,
-    SessionId, SessionStoreCompleteness, UsageCounts, UsageObservation,
+    DomainError, ExtraCounts, Harness, ObservationIdentity, ObservationSource, SessionId,
+    SessionStoreCompleteness, UsageCounts, UsageObservation,
 };
 
 #[test]

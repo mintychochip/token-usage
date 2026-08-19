@@ -64,8 +64,14 @@ fn claude_code_global_snapshot_is_a_harness_approximation() {
         loaded.counts().output_tokens(),
         payload["output_tokens"].as_u64().unwrap()
     );
-    assert_eq!(loaded.source(), ObservationSource::HarnessGlobalApproximation);
-    assert_eq!(loaded.identity().session_id().as_str(), SessionId::HARNESS_GLOBAL);
+    assert_eq!(
+        loaded.source(),
+        ObservationSource::HarnessGlobalApproximation
+    );
+    assert_eq!(
+        loaded.identity().session_id().as_str(),
+        SessionId::HARNESS_GLOBAL
+    );
 }
 
 #[test]
@@ -97,7 +103,10 @@ fn grok_signals_fragment_is_partial_or_unknown() {
         loaded.counts().input_tokens(),
         payload["contextTokensUsed"].as_u64().unwrap()
     );
-    assert_eq!(loaded.identity().session_id().as_str(), payload["sessionId"].as_str().unwrap());
+    assert_eq!(
+        loaded.identity().session_id().as_str(),
+        payload["sessionId"].as_str().unwrap()
+    );
     assert_eq!(loaded.source(), ObservationSource::PluginReport);
     assert!(
         matches!(
@@ -200,7 +209,10 @@ fn gemini_cli_stats_preserve_fixture_counts() {
         loaded.counts().output_tokens(),
         tokens["output"].as_u64().unwrap()
     );
-    assert_eq!(loaded.counts().extras().cache_read, tokens["cached"].as_u64());
+    assert_eq!(
+        loaded.counts().extras().cache_read,
+        tokens["cached"].as_u64()
+    );
 }
 
 #[test]

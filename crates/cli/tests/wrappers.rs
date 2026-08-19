@@ -28,7 +28,8 @@ const WRAPPERS: &[&str] = &[
 fn host_wrappers_exist_and_invoke_the_rust_reporter() {
     for rel in WRAPPERS {
         let path = repo_root().join(rel);
-        let body = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let body =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
         assert!(
             body.contains("token-usage-reporter"),
             "{rel} must exec token-usage-reporter"

@@ -50,10 +50,7 @@ fn ingest_then_read_returns_submitted_input_and_output_counts() {
     );
     store.ingest(submitted.clone()).unwrap();
 
-    let loaded = store
-        .get(submitted.identity())
-        .unwrap()
-        .expect("stored");
+    let loaded = store.get(submitted.identity()).unwrap().expect("stored");
     assert_eq!(loaded.counts().input_tokens(), 12345);
     assert_eq!(loaded.counts().output_tokens(), 678);
     assert_eq!(loaded.counts().extras().cache_read, Some(7));
@@ -147,7 +144,10 @@ fn source_and_completeness_are_preserved() {
     );
     store.ingest(global.clone()).unwrap();
     let loaded = store.get(global.identity()).unwrap().unwrap();
-    assert_eq!(loaded.source(), ObservationSource::HarnessGlobalApproximation);
+    assert_eq!(
+        loaded.source(),
+        ObservationSource::HarnessGlobalApproximation
+    );
     assert_eq!(loaded.completeness(), SessionStoreCompleteness::Partial);
 
     let grok = observation(
