@@ -1,0 +1,96 @@
+//! Chart- and gist-friendly rollups of stored observations.
+
+use serde::{Deserialize, Serialize};
+use token_usage_domain::{Harness, UsageObservation};
+
+/// Totals for one harness across every stored session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HarnessTotals {
+    pub harness: Harness,
+    pub sessions: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_synced_at: Option<u64>,
+}
+
+/// Public snapshot someone can commit, gist, or chart. No session ids.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UsageSummary {
+    pub generated_at: u64,
+    pub harnesses: Vec<HarnessTotals>,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+}
+
+/// shields.io endpoint badge JSON.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShieldsBadge {
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: u32,
+    pub label: String,
+    pub message: String,
+}
+
+/// Roll up observations by harness. Session ids are omitted for public gists.
+pub fn summarize(observations: &[UsageObservation], generated_at: u64) -> UsageSummary {
+    let mut rows: Vec<HarnessTotals> = Vec::new();
+    for obs in observations {
+        let harness = obs.identity().harness();
+        if let Some(row) = rows.iter_mut().find(|row| row.harness == harness) {
+            row.sessions += 1;
+            row.input_tokens += obs.counts().input_tokens();
+            row.output_tokens += obs.counts().output_tokens();
+            row.last_synced_at = max_ts(row.last_synced_at, obs.last_synced_at());
+        } else {
+            rows.push(HarnessTotals {
+                harness,
+                sessions: 1,
+                input_tokens: obs.counts().input_tokens(),
+                output_tokens: obs.counts().output_tokens(),
+                last_synced_at: obs.last_synced_at(),
+            });
+        }
+    }
+    rows.sort_by_key(|row| row.harness.as_str().to_string());
+    let input_tokens = rows.iter().map(|r| r.input_tokens).sum();
+    let output_tokens = rows.iter().map(|r| r.output_tokens).sum();
+    UsageSummary {
+        generated_at,
+        harnesses: rows,
+        input_tokens,
+        output_tokens,
+    }
+}
+
+/// Compact badge for README shields.io custom endpoints.
+pub fn shields_badge(summary: &UsageSummary) -> ShieldsBadge {
+    ShieldsBadge {
+        schema_version: 1,
+        label: "token usage".to_string(),
+        message: format!(
+            "{} in / {} out",
+            compact_count(summary.input_tokens),
+            compact_count(summary.output_tokens)
+        ),
+    }
+}
+
+fn max_ts(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+    match (a, b) {
+        (Some(x), Some(y)) => Some(x.max(y)),
+        (Some(x), None) => Some(x),
+        (None, Some(y)) => Some(y),
+        (None, None) => None,
+    }
+}
+
+fn compact_count(n: u64) -> String {
+    if n >= 1_000_000 {
+        format!("{:.1}M", n as f64 / 1_000_000.0)
+    } else if n >= 1_000 {
+        format!("{:.1}k", n as f64 / 1_000.0)
+    } else {
+        n.to_string()
+    }
+}

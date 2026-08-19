@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use token_usage_adapters::adapt;
-use token_usage_cli::{WireHarnessSync, WireObservation, WireSyncStatus};
+use token_usage_cli::{shields_badge, summarize, WireHarnessSync, WireObservation, WireSyncStatus};
 use token_usage_domain::{Harness, ObservationIdentity, SessionId};
 use token_usage_store::FileStore;
 use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
@@ -46,11 +46,14 @@ enum Command {
     },
     /// List every stored identity.
     List,
-    /// Write every stored observation as JSONL (user-owned format).
+    /// Write stored usage as a file you can gist, commit, or chart.
     Export {
         /// Destination file; stdout when omitted.
         #[arg(long)]
         file: Option<PathBuf>,
+        /// `jsonl` (full sessions), `summary` (per-harness totals, no session ids), or `shields`.
+        #[arg(long, default_value = "jsonl")]
+        format: String,
     },
     /// Read JSONL observations into the local store.
     Import {
@@ -120,13 +123,29 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Command::Export { file } => {
-            let mut out = String::new();
-            for obs in store.list()? {
-                let wire = WireObservation::from_observation(&obs);
-                out.push_str(&serde_json::to_string(&wire)?);
-                out.push('\n');
-            }
+        Command::Export { file, format } => {
+            let listed = store.list()?;
+            let out = match format.as_str() {
+                "jsonl" => {
+                    let mut buf = String::new();
+                    for obs in &listed {
+                        buf.push_str(&serde_json::to_string(&WireObservation::from_observation(
+                            obs,
+                        ))?);
+                        buf.push('\n');
+                    }
+                    buf
+                }
+                "summary" => {
+                    let summary = summarize(&listed, unix_now());
+                    format!("{}\n", serde_json::to_string_pretty(&summary)?)
+                }
+                "shields" => {
+                    let badge = shields_badge(&summarize(&listed, unix_now()));
+                    format!("{}\n", serde_json::to_string_pretty(&badge)?)
+                }
+                other => return Err(format!("unknown export format: {other}").into()),
+            };
             match file {
                 Some(path) => std::fs::write(path, out)?,
                 None => print!("{out}"),

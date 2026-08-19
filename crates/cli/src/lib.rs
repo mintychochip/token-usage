@@ -1,5 +1,6 @@
 //! Thin HTTP layer over the durable usage store.
 
+mod summary;
 mod wire;
 
 use std::net::SocketAddr;
@@ -17,6 +18,7 @@ use token_usage_store::{FileStore, StoreError};
 use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 use tokio::net::TcpListener;
 
+pub use summary::{shields_badge, summarize, HarnessTotals, ShieldsBadge, UsageSummary};
 pub use wire::{
     WireHarnessSync, WireObservation, WireSessionList, WireSyncRequest, WireSyncStatus,
 };

@@ -225,3 +225,49 @@ fn export_jsonl_round_trips_through_import_into_a_new_local_store() {
     assert!(body.contains(&expected_input.to_string()), "{body}");
     assert!(body.contains("hermes-sess-1"), "{body}");
 }
+
+#[test]
+fn export_summary_is_chartable_and_has_no_session_ids() {
+    let dir = tempdir().unwrap();
+    let store = dir.path().join("store.json");
+    let empty_home = dir.path().join("home");
+    std::fs::create_dir_all(&empty_home).unwrap();
+    let fixture = format!(
+        "{}/../adapters/fixtures/hermes-session.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let expected: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&fixture).unwrap()).unwrap();
+    let expected_input = expected["usage"]["input_tokens"].as_u64().unwrap();
+    reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
+        .args(["ingest", "--adapter", "hermes", "--file", &fixture])
+        .output()
+        .unwrap();
+
+    let summary_path = dir.path().join("usage-summary.json");
+    let export = reporter()
+        .arg("--store")
+        .arg(&store)
+        .arg("--home")
+        .arg(&empty_home)
+        .args(["export", "--format", "summary", "--file"])
+        .arg(&summary_path)
+        .output()
+        .unwrap();
+    assert!(
+        export.status.success(),
+        "{}",
+        String::from_utf8_lossy(&export.stderr)
+    );
+    let summary: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&summary_path).unwrap()).unwrap();
+    assert_eq!(summary["input_tokens"].as_u64().unwrap(), expected_input);
+    assert!(summary.get("session_id").is_none());
+    assert!(summary["harnesses"].as_array().unwrap().iter().any(|h| {
+        h["harness"] == "hermes" && h["input_tokens"].as_u64() == Some(expected_input)
+    }));
+}

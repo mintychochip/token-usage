@@ -1,0 +1,71 @@
+//! Drive summarize() on observations that went through the real store.
+
+use tempfile::tempdir;
+use token_usage_cli::{shields_badge, summarize};
+use token_usage_domain::{
+    Harness, ObservationIdentity, ObservationSource, SessionId, SessionStoreCompleteness,
+    UsageCounts, UsageObservation,
+};
+use token_usage_store::FileStore;
+
+#[test]
+fn summary_adds_sessions_per_harness_and_omits_session_ids() {
+    let dir = tempdir().unwrap();
+    let store = FileStore::open(dir.path().join("store.json")).unwrap();
+    store
+        .ingest_at(
+            UsageObservation::new(
+                ObservationIdentity::new(Harness::Grok, SessionId::parse("a").unwrap()),
+                UsageCounts::new(100, 10),
+                ObservationSource::PluginReport,
+                SessionStoreCompleteness::Unknown,
+            ),
+            10,
+        )
+        .unwrap();
+    store
+        .ingest_at(
+            UsageObservation::new(
+                ObservationIdentity::new(Harness::Grok, SessionId::parse("b").unwrap()),
+                UsageCounts::new(50, 5),
+                ObservationSource::PluginReport,
+                SessionStoreCompleteness::Unknown,
+            ),
+            20,
+        )
+        .unwrap();
+    store
+        .ingest_at(
+            UsageObservation::new(
+                ObservationIdentity::new(Harness::Hermes, SessionId::parse("h").unwrap()),
+                UsageCounts::new(7, 1),
+                ObservationSource::PluginReport,
+                SessionStoreCompleteness::Complete,
+            ),
+            15,
+        )
+        .unwrap();
+
+    let listed = store.list().unwrap();
+    let summary = summarize(&listed, 99);
+    assert_eq!(summary.generated_at, 99);
+    assert_eq!(summary.input_tokens, 157);
+    assert_eq!(summary.output_tokens, 16);
+    let grok = summary
+        .harnesses
+        .iter()
+        .find(|h| h.harness == Harness::Grok)
+        .unwrap();
+    assert_eq!(grok.sessions, 2);
+    assert_eq!(grok.input_tokens, 150);
+    assert_eq!(grok.last_synced_at, Some(20));
+    let text = serde_json::to_string(&summary).unwrap();
+    assert!(
+        !text.contains("\"session_id\""),
+        "public summary must not leak session ids: {text}"
+    );
+
+    let badge = shields_badge(&summary);
+    assert_eq!(badge.schema_version, 1);
+    assert!(badge.message.contains("157") || badge.message.contains("in"));
+}
