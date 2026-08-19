@@ -1,0 +1,16 @@
+{
+  "description": "Sync jcode usage into the token-usage store",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./scripts/report.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

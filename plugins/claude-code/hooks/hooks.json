@@ -1,0 +1,27 @@
+{
+  "description": "Sync session usage into the token-usage store",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/report.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/report.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

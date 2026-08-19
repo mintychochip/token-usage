@@ -1,0 +1,6 @@
+{
+  "name": "token-usage",
+  "description": "Report Codex token usage to the shared Rust store",
+  "version": "0.1.0",
+  "hooks": "./hooks/hooks.json"
+}

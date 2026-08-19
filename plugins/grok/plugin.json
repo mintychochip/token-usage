@@ -1,0 +1,5 @@
+{
+  "name": "token-usage",
+  "description": "Report Grok Build token usage to the shared Rust store. Session completeness may be unknown.",
+  "version": "0.1.0"
+}
