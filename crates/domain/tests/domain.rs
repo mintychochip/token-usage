@@ -105,6 +105,11 @@ fn observation_carries_counts_source_and_completeness() {
     assert_eq!(obs.counts().extras().cache_read, Some(80));
     assert_eq!(obs.source(), ObservationSource::PluginReport);
     assert_eq!(obs.completeness(), SessionStoreCompleteness::Complete);
+    assert_eq!(obs.last_synced_at(), None);
+    assert_eq!(
+        obs.with_last_synced_at(1_700_000_000).last_synced_at(),
+        Some(1_700_000_000)
+    );
 }
 
 #[test]

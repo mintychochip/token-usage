@@ -60,6 +60,9 @@ pub struct UsageObservation {
     counts: UsageCounts,
     source: ObservationSource,
     completeness: SessionStoreCompleteness,
+    /// Unix seconds when this identity was last written to the store.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_synced_at: Option<u64>,
 }
 
 impl UsageObservation {
@@ -75,7 +78,14 @@ impl UsageObservation {
             counts,
             source,
             completeness,
+            last_synced_at: None,
         }
+    }
+
+    /// Stamp (or replace) the last-synced time.
+    pub fn with_last_synced_at(mut self, unix_seconds: u64) -> Self {
+        self.last_synced_at = Some(unix_seconds);
+        self
     }
 
     /// Identity used for store lookup and merge.
@@ -96,5 +106,10 @@ impl UsageObservation {
     /// How complete the host session store was.
     pub fn completeness(&self) -> SessionStoreCompleteness {
         self.completeness
+    }
+
+    /// When this identity was last synced, if known.
+    pub fn last_synced_at(&self) -> Option<u64> {
+        self.last_synced_at
     }
 }
