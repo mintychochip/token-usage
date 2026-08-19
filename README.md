@@ -41,10 +41,14 @@ TOKEN_USAGE_STORE=./store.json cargo run -p token-usage-cli --bin token-usage-re
   ingest --adapter hermes --file crates/adapters/fixtures/hermes-session.json
 ```
 
-`POST /v1/observations` accepts a canonical observation.  
-`POST /v1/ingest/{harness}` accepts a raw host payload.  
-`POST /v1/sync` scans existing host session files (not just the active session).  
-`GET /v1/sync` returns per-harness `last_synced_at`.
+`POST /v1/adapt/{harness}` maps a host payload and **writes nothing** (this is
+what a public host like `api.mintychochip.dev` should run, with
+`TOKEN_USAGE_STATELESS=1`).  
+`POST /v1/observations` / `POST /v1/ingest/{harness}` persist only when the
+API was started with a local store — the hosted API does not store usage.  
+`GET /v1/sessions` lists the **local** store.  
+`token-usage-reporter export` / `import` are JSONL (`WireObservation` per
+line) so you can keep and move the file yourself.
 
 On first ingest or `list` for a harness, the reporter walks that host's on-disk
 sessions (Grok `signals.json`, Pi/oh-my-pi JSONL, Codex/Claude JSONL, and other

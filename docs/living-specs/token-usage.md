@@ -35,7 +35,8 @@ queryable together.
 
 - Marketplace publishing or live install into a running harness
 - Billing, pricing, dashboards, TUI/web UI
-- Auth, multi-user tenancy, remote replication
+- Auth, multi-user tenancy, or a hosted usage database
+- Remote replication of user totals onto api.mintychochip.dev
 - Implementing a tokenizer or independently recounting tokens
 - Completing or reverse-engineering Grok Build's session store
 
@@ -90,7 +91,9 @@ queryable together.
 
 - [ ] Optional sync against a harness's own global `/usage` snapshot on a timer
 - [ ] Compaction-aware extra counts (tokens before/after compact)
-- [ ] Reporter POST of WireObservation to a remote `token-usage-api` (plugins stay exec-only)
+- [x] Stateless hosted adapt API (`TOKEN_USAGE_STATELESS`); storage stays client-owned
+- [x] JSONL export/import as the user-managed observation format
+- [ ] Reporter POST to `api.mintychochip.dev` then write the local store (plugins stay exec-only)
 
 ## Future
 
@@ -111,6 +114,7 @@ queryable together.
 | 2026-08-19 | Expand named harnesses to include Hermes, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi | Same class of coding-agent hosts with plugin/hook or usage-dump surfaces |
 | 2026-08-19 | First ingest/list scans all discoverable host sessions; stamp last_synced_at | Users already have history in Grok/Pi/omp/Codex stores; hooks only see the active session |
 | 2026-08-19 | Remote format: HTTP POST of existing WireObservation; plugins stay `exec token-usage-reporter ingest` | FileStore is the state to front, not hook JSON; no new domain. See docs/remote-format.md |
+| 2026-08-19 | Hosted API (api.mintychochip.dev) is stateless; users keep FileStore or JSONL | Do not store anyone's usage on the domain; adapt only |
 
 ## Open questions
 

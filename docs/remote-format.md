@@ -111,22 +111,34 @@ option 1 or 2. Do not make this the plugin’s store.
 
 ## Recommendation
 
-**Primary remote target: the existing HTTP observation API**, with
-`WireObservation` as the document. Run `token-usage-api` on a host the
-reporter can reach (`TOKEN_USAGE_API=https://…`). Plugins stay:
+**Primary remote target: a stateless HTTP adapt API** (e.g.
+`https://api.mintychochip.dev`) plus **client-owned storage**.
+
+The hosted process sets `TOKEN_USAGE_STATELESS=1`. It accepts:
+
+- `POST /v1/adapt/{harness}` — map a hook payload to `WireObservation`
+- `POST /v1/ingest/{harness}` / `POST /v1/observations` — same JSON back,
+  **no write**
+
+`GET /v1/sessions` returns `501` (`stateless api: no store`). Nothing is
+kept on the API host.
+
+Totals live on the machine that ran the reporter:
+
+- default: local `FileStore` (`TOKEN_USAGE_STORE`, usually `~/.token-usage/store.json`)
+- portable: one `WireObservation` per line (`token-usage-reporter export` /
+  `import`)
+
+Plugins stay:
 
 ```sh
 exec "$REPORTER" ingest --adapter <harness>
 ```
 
-The reporter POSTs either the adapted snapshot to `/v1/observations` or the
-raw hook JSON to `/v1/ingest/{harness}`. FileStore lives only on that remote
-process. Same-identity last-write-wins stays the shipped `ingest` path.
-
-**Why this one:** it is already the wire format, already last-write-wins, and
-already reachable without the plugin learning a second schema. Object-store
-PUT (option 2) is the fallback if there is no always-on HTTP. JSONL (option 3)
-is an optional audit side-channel, not the source of truth.
+**Why this one:** the plugin still does not manage state; the API does not
+hold anyone's usage; the user owns the JSON/JSONL. Last-write-wins stays in
+the local store. Object-store PUT is a fallback if they want files they
+manage elsewhere. JSONL export is that managed format.
 
 **What each report must send** (do not invent a domain): `harness`,
 `session_id`, `input_tokens`, `output_tokens`, `source`, `completeness`,
