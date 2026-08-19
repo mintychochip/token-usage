@@ -1,5 +1,6 @@
 {
   "sessionId": "grok-compact-1",
+  "primaryModelId": "grok-4.6",
   "contextTokensUsed": 78914,
   "contextWindowTokens": 500000,
   "compactionCount": 2,

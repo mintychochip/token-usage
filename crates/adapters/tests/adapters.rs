@@ -133,6 +133,11 @@ fn grok_compaction_extras_preserve_host_before_and_after() {
         loaded.counts().extras().tokens_after,
         payload["contextTokensUsed"].as_u64()
     );
+    assert_eq!(
+        loaded.model(),
+        payload["primaryModelId"].as_str(),
+        "Grok primaryModelId is the model to price"
+    );
 }
 
 #[test]
@@ -192,6 +197,11 @@ fn hermes_post_api_request_preserves_fixture_counts() {
     );
     assert_eq!(loaded.identity().session_id().as_str(), "hermes-sess-1");
     assert_eq!(loaded.source(), ObservationSource::PluginReport);
+    assert_eq!(
+        loaded.model(),
+        payload["model"].as_str(),
+        "host model must be kept so cost can be looked up"
+    );
 }
 
 #[test]

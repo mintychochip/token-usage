@@ -19,6 +19,8 @@ pub struct WireObservation {
     pub completeness: SessionStoreCompleteness,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_synced_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 impl WireObservation {
@@ -33,6 +35,7 @@ impl WireObservation {
             source: obs.source(),
             completeness: obs.completeness(),
             last_synced_at: obs.last_synced_at(),
+            model: obs.model().map(str::to_string),
         }
     }
 
@@ -46,6 +49,9 @@ impl WireObservation {
         );
         if let Some(at) = self.last_synced_at {
             obs = obs.with_last_synced_at(at);
+        }
+        if let Some(model) = self.model {
+            obs = obs.with_model(model);
         }
         Ok(obs)
     }

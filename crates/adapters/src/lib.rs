@@ -20,22 +20,51 @@ pub enum AdaptError {
 
 /// Map a payload for a named harness into a domain observation.
 pub fn adapt(harness: Harness, payload: &Value) -> Result<UsageObservation, AdaptError> {
-    match harness {
-        Harness::ClaudeCode => adapt_claude_code(payload),
-        Harness::Codex => adapt_codex(payload),
-        Harness::Grok => adapt_grok(payload),
-        Harness::OhMyPi => adapt_oh_my_pi(payload),
-        Harness::Jcode => adapt_jcode(payload),
-        Harness::Hermes => adapt_hermes(payload),
-        Harness::OpenCode => adapt_opencode(payload),
-        Harness::GeminiCli => adapt_gemini_cli(payload),
-        Harness::Aider => adapt_aider(payload),
-        Harness::Goose => adapt_goose(payload),
-        Harness::Amp => adapt_amp(payload),
-        Harness::Droid => adapt_droid(payload),
-        Harness::Cline => adapt_cline(payload),
-        Harness::Pi => adapt_pi(payload),
+    let observation = match harness {
+        Harness::ClaudeCode => adapt_claude_code(payload)?,
+        Harness::Codex => adapt_codex(payload)?,
+        Harness::Grok => adapt_grok(payload)?,
+        Harness::OhMyPi => adapt_oh_my_pi(payload)?,
+        Harness::Jcode => adapt_jcode(payload)?,
+        Harness::Hermes => adapt_hermes(payload)?,
+        Harness::OpenCode => adapt_opencode(payload)?,
+        Harness::GeminiCli => adapt_gemini_cli(payload)?,
+        Harness::Aider => adapt_aider(payload)?,
+        Harness::Goose => adapt_goose(payload)?,
+        Harness::Amp => adapt_amp(payload)?,
+        Harness::Droid => adapt_droid(payload)?,
+        Harness::Cline => adapt_cline(payload)?,
+        Harness::Pi => adapt_pi(payload)?,
+    };
+    Ok(attach_model(observation, payload))
+}
+
+fn attach_model(observation: UsageObservation, payload: &Value) -> UsageObservation {
+    match extract_model(payload) {
+        Some(model) => observation.with_model(model),
+        None => observation,
     }
+}
+
+fn extract_model(payload: &Value) -> Option<String> {
+    first_str(
+        payload,
+        &[
+            "model",
+            "model_id",
+            "modelId",
+            "primaryModelId",
+            "primary_model",
+        ],
+    )
+    .or_else(|| payload.pointer("/session/model").and_then(Value::as_str))
+    .or_else(|| {
+        payload
+            .get("modelsUsed")
+            .and_then(Value::as_array)
+            .and_then(|arr| arr.iter().find_map(Value::as_str))
+    })
+    .map(str::to_string)
 }
 
 /// Claude Code Stop-hook or `/usage` snapshot.
