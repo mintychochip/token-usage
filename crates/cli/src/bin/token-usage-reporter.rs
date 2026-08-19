@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use token_usage_adapters::adapt;
 use token_usage_cli::{
-    bundle_from_store, load_github_config, pull_dir, pull_gist, push_gist, save_github_config,
-    shields_badge, summarize_priced, write_bundle, WireHarnessSync, WireObservation,
-    WireSyncStatus,
+    bundle_from_store, load_github_config, publish_snippets, pull_dir, pull_gist, push_gist,
+    save_github_config, shields_badge, summarize_priced, write_bundle, WireHarnessSync,
+    WireObservation, WireSyncStatus, USAGE_CARD_JS,
 };
 use token_usage_domain::{Harness, ObservationIdentity, SessionId};
 use token_usage_store::FileStore;
@@ -87,6 +87,9 @@ enum Command {
         /// Omit `usage.jsonl` (summary + badge only). Use for a public gist or repo.
         #[arg(long)]
         public: bool,
+        /// Public base URL of the published files (GitHub Pages, raw gist, …).
+        #[arg(long)]
+        url: Option<String>,
     },
     /// Import sessions from a published directory or gist into the local store.
     Pull {
@@ -248,10 +251,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Command::Publish { dir, gist, public } => {
+        Command::Publish {
+            dir,
+            gist,
+            public,
+            url,
+        } => {
             let bundle = bundle_from_store(&store, unix_now())?;
             if let Some(dir) = dir {
                 write_bundle(&dir, &bundle, !public)?;
+                std::fs::write(dir.join("usage-card.js"), USAGE_CARD_JS)?;
+                let base = url.as_deref().unwrap_or(".");
+                let snippets = publish_snippets(base);
+                std::fs::write(dir.join("snippets.md"), &snippets)?;
+                println!("{snippets}");
                 return Ok(());
             }
             let mut cfg = load_github_config(&store_path);
@@ -268,7 +281,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let _ = std::fs::remove_dir_all(&work);
             cfg.gist_id = Some(gist_id.clone());
             save_github_config(&store_path, &cfg)?;
+            let base = url.unwrap_or_else(|| format!("https://gist.github.com/{gist_id}/raw"));
             println!("{gist_id}");
+            println!("{}", publish_snippets(&base));
         }
         Command::Pull { dir, gist } => {
             if let Some(dir) = dir {

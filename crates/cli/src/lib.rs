@@ -1,5 +1,6 @@
 //! Thin HTTP layer over the durable usage store.
 
+mod components;
 mod pricing;
 mod publish;
 mod summary;
@@ -20,6 +21,10 @@ use token_usage_store::{FileStore, StoreError};
 use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 use tokio::net::TcpListener;
 
+pub use components::{
+    github_badge_markdown, join_published_url, publish_snippets, render_summary_card,
+    website_embed_html, USAGE_CARD_JS,
+};
 pub use pricing::{estimate_cost_usd, load_price_table, parse_openrouter_prices, PriceTable};
 pub use publish::{
     bundle_from_store, load_github_config, pull_dir, pull_gist, push_gist, save_github_config,

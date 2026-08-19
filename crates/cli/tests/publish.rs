@@ -339,3 +339,56 @@ fn public_gist_omits_jsonl() {
         "public gist must not include session jsonl"
     );
 }
+
+#[test]
+fn publish_dir_prints_github_and_website_snippets_twice() {
+    let dir = tempdir().unwrap();
+    let store = dir.path().join("store.json");
+    let home = dir.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+    ingest_hermes(&store, &home);
+    let bundle = dir.path().join("bundle");
+    let base = "https://example.com/usage";
+    for _ in 0..2 {
+        let publish = reporter()
+            .arg("--store")
+            .arg(&store)
+            .arg("--home")
+            .arg(&home)
+            .args(["publish", "--dir"])
+            .arg(&bundle)
+            .args(["--url", base])
+            .output()
+            .unwrap();
+        assert!(
+            publish.status.success(),
+            "{}",
+            String::from_utf8_lossy(&publish.stderr)
+        );
+        let stdout = String::from_utf8_lossy(&publish.stdout);
+        let combined = format!(
+            "{stdout}\n{}",
+            fs::read_to_string(bundle.join("snippets.md")).unwrap_or_default()
+        );
+        assert!(
+            combined.contains("img.shields.io"),
+            "must emit GitHub shields markdown: {combined}"
+        );
+        assert!(
+            combined.contains("usage-badge.json"),
+            "badge snippet must reference usage-badge.json: {combined}"
+        );
+        assert!(
+            combined.contains("usage-summary.json"),
+            "website snippet must reference usage-summary.json: {combined}"
+        );
+        assert!(
+            !combined.contains("session_id"),
+            "snippets must not leak session ids: {combined}"
+        );
+        assert!(
+            bundle.join("usage-card.js").is_file(),
+            "published dir must include the website script"
+        );
+    }
+}
