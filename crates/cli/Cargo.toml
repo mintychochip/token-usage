@@ -1,0 +1,34 @@
+[package]
+name = "token-usage-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "HTTP API and reporter CLI for the token-usage store"
+
+[lib]
+name = "token_usage_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "token-usage-api"
+path = "src/bin/token-usage-api.rs"
+
+[[bin]]
+name = "token-usage-reporter"
+path = "src/bin/token-usage-reporter.rs"
+
+[dependencies]
+axum.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+token-usage-adapters.workspace = true
+token-usage-domain.workspace = true
+token-usage-store.workspace = true
+
+[dev-dependencies]
+http-body-util.workspace = true
+tempfile.workspace = true
+tower.workspace = true
