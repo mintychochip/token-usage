@@ -1,6 +1,9 @@
 # token-usage
 
-[![CI](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml/badge.svg)](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml)
+[![build](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml/badge.svg)](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mintychochip/token-usage?logo=github&label=release)](https://github.com/mintychochip/token-usage/releases)
+[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/mintychochip/token-usage/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Cross-harness token-usage store. Plugins map whatever a coding agent emits — a
 session hook, a global `/usage` snapshot, or a partial session fragment — into
