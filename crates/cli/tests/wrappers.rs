@@ -30,10 +30,7 @@ fn host_wrappers_exist_and_invoke_the_rust_reporter() {
         let path = repo_root().join(rel);
         let body =
             fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-        assert!(
-            body.contains("token-usage-reporter"),
-            "{rel} must exec token-usage-reporter"
-        );
+        assert!(body.contains("toktally"), "{rel} must exec toktally");
         assert!(
             !body.contains("input_tokens") && !body.contains("serde_json"),
             "{rel} must not re-implement ingest"

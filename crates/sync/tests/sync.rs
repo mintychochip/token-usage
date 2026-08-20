@@ -3,9 +3,9 @@
 use std::path::PathBuf;
 
 use tempfile::tempdir;
-use token_usage_domain::{Harness, ObservationIdentity, SessionId};
-use token_usage_store::FileStore;
-use token_usage_sync::{discover, sync_all_needed, sync_harness, SyncRoots};
+use toktally_domain::{Harness, ObservationIdentity, SessionId};
+use toktally_store::FileStore;
+use toktally_sync::{discover, sync_all_needed, sync_harness, SyncRoots};
 
 fn fixture_home() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/home")
@@ -142,7 +142,7 @@ fn claude_usage_json_is_ingested_as_a_global_approximation() {
     );
     assert_eq!(
         loaded.source(),
-        token_usage_domain::ObservationSource::HarnessGlobalApproximation
+        toktally_domain::ObservationSource::HarnessGlobalApproximation
     );
 }
 

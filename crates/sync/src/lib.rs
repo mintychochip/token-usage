@@ -7,9 +7,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
-use token_usage_adapters::{adapt, AdaptError};
-use token_usage_domain::Harness;
-use token_usage_store::{FileStore, StoreError};
+use toktally_adapters::{adapt, AdaptError};
+use toktally_domain::Harness;
+use toktally_store::{FileStore, StoreError};
 
 /// Failures while scanning or ingesting discovered sessions.
 #[derive(Debug, thiserror::Error)]
@@ -31,9 +31,10 @@ pub struct SyncRoots {
 }
 
 impl SyncRoots {
-    /// `TOKEN_USAGE_HARNESS_HOME`, else the process `HOME`, else `.`.
+    /// `TOKTALLY_HARNESS_HOME`, else `TOKEN_USAGE_HARNESS_HOME`, else `HOME`, else `.`.
     pub fn from_env() -> Self {
-        let home = std::env::var_os("TOKEN_USAGE_HARNESS_HOME")
+        let home = std::env::var_os("TOKTALLY_HARNESS_HOME")
+            .or_else(|| std::env::var_os("TOKEN_USAGE_HARNESS_HOME"))
             .or_else(|| std::env::var_os("HOME"))
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));

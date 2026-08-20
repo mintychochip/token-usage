@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
-use token_usage_domain::{Harness, ObservationIdentity, UsageObservation};
+use toktally_domain::{Harness, ObservationIdentity, UsageObservation};
 
 /// Failures from opening or writing the store.
 #[derive(Debug, thiserror::Error)]

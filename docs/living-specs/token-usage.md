@@ -2,7 +2,7 @@
 
 > Status: active
 > Last updated: 2026-08-19
-> Owners: token-usage
+> Owners: toktally
 
 ## Intent
 
@@ -80,13 +80,13 @@ queryable together.
   (harness reports are cumulative snapshots, not deltas).
 - API is a thin I/O layer over the store. Reporter is the plugin entry point
   (`ingest` from stdin/file, `get`, `publish`/`pull`, and the API binary).
-- GitHub transport is `gh gist` / `gh api`. Tests fake `gh` via `TOKEN_USAGE_GH`.
+- GitHub transport is `gh gist` / `gh api`. Tests fake `gh` via `TOKTALLY_GH`.
   Public publishes omit `usage.jsonl`.
 - Global `/usage` snapshots live at `{harness-home}/usage.json` and are marked
   `kind: global_usage`. `sync --interval N` re-scans in a loop (implies force).
 - Prices: parse OpenRouter `/api/v1/models` (LiteLLM object as fallback). Cache
-  `prices.json` next to the store. `TOKEN_USAGE_PRICES` overrides. Fetch is
-  skipped when `TOKEN_USAGE_PRICES_FETCH=0`. No cost if model or rate is missing.
+  `prices.json` next to the store. `TOKTALLY_PRICES` overrides. Fetch is
+  skipped when `TOKTALLY_PRICES_FETCH=0`. No cost if model or rate is missing.
 - Ambiguous host ids (`opus-5-1m`, `claude-opus-5-200k`) resolve to the longest
   matching priced id. Exact priced variants win. Do not collapse onto a sibling
   (`opus-4`). Still no cost when nothing unique matches.
@@ -118,7 +118,7 @@ queryable together.
 - [x] Copy-paste GitHub shields badge and website embed from published JSON
 
 ## Next
-- [x] Stateless hosted adapt API (`TOKEN_USAGE_STATELESS`); storage stays client-owned
+- [x] Stateless hosted adapt API (`TOKTALLY_STATELESS`); storage stays client-owned
 - [x] JSONL export/import as the user-managed observation format
 - [x] Summary/shields export so usage can be gist’d or charted without a hosted DB
 
@@ -140,7 +140,7 @@ queryable together.
 | 2026-08-19 | Global approximations use reserved `__harness_global__` when the payload has no session | `source` still distinguishes plugin vs global; a real session id is allowed if the host supplies one |
 | 2026-08-19 | Expand named harnesses to include Hermes, OpenCode, Gemini CLI, Aider, Goose, Amp, Droid, Cline, and Pi | Same class of coding-agent hosts with plugin/hook or usage-dump surfaces |
 | 2026-08-19 | First ingest/list scans all discoverable host sessions; stamp last_synced_at | Users already have history in Grok/Pi/omp/Codex stores; hooks only see the active session |
-| 2026-08-19 | Remote format: HTTP POST of existing WireObservation; plugins stay `exec token-usage-reporter ingest` | FileStore is the state to front, not hook JSON; no new domain. See docs/remote-format.md |
+| 2026-08-19 | Remote format: HTTP POST of existing WireObservation; plugins stay `exec toktally ingest` | FileStore is the state to front, not hook JSON; no new domain. See docs/remote-format.md |
 | 2026-08-19 | Hosted API (api.mintychochip.dev) is stateless; users keep FileStore or JSONL | Do not store anyone's usage on the domain; adapt only |
 | 2026-08-19 | Do not require a hosted API; expose usage via summary/shields JSON on GitHub | Sync is local; charts/gists are files the user publishes |
 | 2026-08-19 | GitHub is the remote: `publish`/`pull` via gist (`gh`) or a directory | Ingest stays FileStore; no usage DB on mintychochip.dev. Secret gist includes `usage.jsonl`; public gist is summary + badge only |

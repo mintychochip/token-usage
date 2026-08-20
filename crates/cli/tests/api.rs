@@ -1,4 +1,4 @@
-//! Drive the shipped API router and the token-usage-api binary.
+//! Drive the shipped API router and the toktally-api binary.
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -9,13 +9,13 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tempfile::tempdir;
-use token_usage_cli::{app, ApiState, WireObservation};
-use token_usage_domain::{
+use toktally_cli::{app, ApiState, WireObservation};
+use toktally_domain::{
     ExtraCounts, Harness, ObservationIdentity, ObservationSource, SessionId,
     SessionStoreCompleteness, UsageCounts, UsageObservation,
 };
-use token_usage_store::FileStore;
-use token_usage_sync::SyncRoots;
+use toktally_store::FileStore;
+use toktally_sync::SyncRoots;
 use tower::ServiceExt;
 
 fn sample_obs() -> UsageObservation {
@@ -153,17 +153,17 @@ fn api_binary_roundtrip_returns_submitted_identity_and_counts() {
 }
 
 fn spawn_api(store: &std::path::Path) -> std::process::Child {
-    let bin = env!("CARGO_BIN_EXE_token-usage-api");
+    let bin = env!("CARGO_BIN_EXE_toktally-api");
     let home = store.parent().unwrap().join("harness-home");
     std::fs::create_dir_all(&home).unwrap();
     let mut child = Command::new(bin)
-        .env("TOKEN_USAGE_STORE", store)
-        .env("TOKEN_USAGE_BIND", "127.0.0.1:0")
-        .env("TOKEN_USAGE_HARNESS_HOME", &home)
+        .env("TOKTALLY_STORE", store)
+        .env("TOKTALLY_BIND", "127.0.0.1:0")
+        .env("TOKTALLY_HARNESS_HOME", &home)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("spawn token-usage-api");
+        .expect("spawn toktally-api");
     let stdout = child.stdout.take().expect("stdout");
     // Stash the pipe on a side channel so read_listen_addr can consume it.
     LISTEN_STDOUT.lock().unwrap().replace(stdout);

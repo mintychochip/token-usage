@@ -1,6 +1,6 @@
 {
-  "name": "token-usage",
-  "description": "Report jcode token usage to the shared Rust store. jcode can also depend on token-usage-adapters directly.",
+  "name": "toktally",
+  "description": "Report jcode token usage to the shared Rust store. jcode can also depend on toktally-adapters directly.",
   "version": "0.1.0",
-  "reporter": "token-usage-reporter"
+  "reporter": "toktally"
 }

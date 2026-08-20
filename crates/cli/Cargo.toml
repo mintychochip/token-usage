@@ -1,21 +1,21 @@
 [package]
-name = "token-usage-cli"
+name = "toktally-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "HTTP API and reporter CLI for the token-usage store"
+description = "HTTP API and CLI for toktally"
 
 [lib]
-name = "token_usage_cli"
+name = "toktally_cli"
 path = "src/lib.rs"
 
 [[bin]]
-name = "token-usage-api"
-path = "src/bin/token-usage-api.rs"
+name = "toktally-api"
+path = "src/bin/toktally-api.rs"
 
 [[bin]]
-name = "token-usage-reporter"
-path = "src/bin/token-usage-reporter.rs"
+name = "toktally"
+path = "src/bin/toktally.rs"
 
 [dependencies]
 axum.workspace = true
@@ -24,10 +24,10 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-token-usage-adapters.workspace = true
-token-usage-domain.workspace = true
-token-usage-store.workspace = true
-token-usage-sync.workspace = true
+toktally-adapters.workspace = true
+toktally-domain.workspace = true
+toktally-store.workspace = true
+toktally-sync.workspace = true
 ureq.workspace = true
 
 [dev-dependencies]

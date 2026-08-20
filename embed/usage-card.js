@@ -1,4 +1,4 @@
-/* token-usage website card. Fetches usage-summary.json. No session ids. */
+/* toktally website card. Fetches usage-summary.json. No session ids. */
 (function (root) {
   function text(summary) {
     var input = summary.input_tokens;
@@ -16,7 +16,7 @@
     }
     el.textContent = "";
     var title = root.document.createElement("strong");
-    title.textContent = "token usage";
+    title.textContent = "toktally";
     var body = root.document.createElement("span");
     body.textContent = " " + text(summary);
     el.appendChild(title);
@@ -43,9 +43,8 @@
     if (!doc || !doc.querySelectorAll) {
       return;
     }
-    var nodes = doc.querySelectorAll(".token-usage-card[data-summary-url]");
+    var nodes = doc.querySelectorAll(".toktally-card[data-summary-url], .toktally-card[data-summary-url]");
     for (var i = 0; i < nodes.length; i++) {
-      mount(nodes[i]);
     }
   }
 
@@ -55,5 +54,5 @@
     boot();
   }
 
-  root.tokenUsageCard = { render: render, mount: mount, text: text };
+  root.toktallyCard = root.tokenUsageCard = { render: render, mount: mount, text: text };
 })(typeof window !== "undefined" ? window : this);

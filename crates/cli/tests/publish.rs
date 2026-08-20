@@ -7,7 +7,7 @@ use std::process::Command;
 use tempfile::tempdir;
 
 fn reporter() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_token-usage-reporter"))
+    Command::new(env!("CARGO_BIN_EXE_toktally"))
 }
 
 fn ingest_hermes(store: &Path, home: &Path) {

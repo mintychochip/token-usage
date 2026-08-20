@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};
-use token_usage_store::FileStore;
+use toktally_store::FileStore;
 
 use crate::summary::{shields_badge, summarize};
 use crate::wire::WireObservation;
@@ -128,7 +128,7 @@ pub fn push_gist(
         });
     }
     let mut cmd = Command::new(&gh);
-    cmd.arg("gist").arg("create").arg("-d").arg("token-usage");
+    cmd.arg("gist").arg("create").arg("-d").arg("toktally");
     if public {
         cmd.arg("--public");
     }
@@ -189,7 +189,8 @@ pub fn save_github_config(store_path: &Path, config: &GithubConfig) -> Result<()
 }
 
 fn gh_bin() -> PathBuf {
-    std::env::var_os("TOKEN_USAGE_GH")
+    std::env::var_os("TOKTALLY_GH")
+        .or_else(|| std::env::var_os("TOKEN_USAGE_GH"))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("gh"))
 }

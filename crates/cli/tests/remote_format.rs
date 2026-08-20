@@ -3,8 +3,8 @@
 
 use std::fs;
 
-use token_usage_cli::WireObservation;
-use token_usage_domain::{
+use toktally_cli::WireObservation;
+use toktally_domain::{
     ExtraCounts, Harness, ObservationIdentity, ObservationSource, SessionId,
     SessionStoreCompleteness, UsageCounts, UsageObservation,
 };
@@ -69,7 +69,7 @@ fn remote_format_doc_recommends_github_and_keeps_plugins_stateless() {
         "{path} must cover an append-only JSONL log"
     );
     assert!(
-        doc.contains("exec") && doc.contains("token-usage-reporter"),
+        doc.contains("exec") && doc.contains("toktally"),
         "{path} must cite the plugin wrapper exec"
     );
     assert!(
@@ -104,7 +104,7 @@ fn host_wrappers_still_exec_reporter_and_do_not_hold_the_store() {
     let root = format!("{}/../..", env!("CARGO_MANIFEST_DIR"));
     let body = fs::read_to_string(format!("{root}/plugins/grok/scripts/report.sh")).unwrap();
     assert!(body.contains("exec"));
-    assert!(body.contains("token-usage-reporter"));
+    assert!(body.contains("toktally"));
     assert!(body.contains("ingest"));
     assert!(
         !body.contains("store.json") && !body.contains("FileStore"),

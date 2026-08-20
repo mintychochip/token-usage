@@ -1,7 +1,7 @@
 //! Chart- and gist-friendly rollups of stored observations.
 
 use serde::{Deserialize, Serialize};
-use token_usage_domain::{Harness, ObservationSource, UsageObservation};
+use toktally_domain::{Harness, ObservationSource, UsageObservation};
 
 use crate::pricing::{estimate_cost_usd, PriceTable};
 

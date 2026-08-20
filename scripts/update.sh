@@ -1,5 +1,5 @@
 #!/bin/sh
-# Update an existing token-usage install by refreshing the source tree and
+# Update an existing toktally install by refreshing the source tree and
 # re-running install.sh.
 #
 #   ./scripts/update.sh
@@ -10,7 +10,7 @@ usage() {
     cat <<'EOF'
 Usage: update.sh [options]
 
-Pull the source checkout (unless TOKEN_USAGE_SKIP_PULL=1) and reinstall
+Pull the source checkout (unless TOKTALLY_SKIP_PULL=1) and reinstall
 into the same prefix.
 
   --prefix DIR     Install prefix (default: $PREFIX or last install.conf)
@@ -30,8 +30,8 @@ is_checkout() {
 }
 
 PREFIX="${PREFIX:-}"
-SRC="${TOKEN_USAGE_SRC:-}"
-SKIP_BUILD="${TOKEN_USAGE_SKIP_BUILD:-}"
+SRC="${TOKTALLY_SRC:-${TOKEN_USAGE_SRC:-}}"
+SKIP_BUILD="${TOKTALLY_SKIP_BUILD:-${TOKEN_USAGE_SKIP_BUILD:-}}"
 INSTALL_ARGS=""
 
 while [ $# -gt 0 ]; do
@@ -69,14 +69,14 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$PREFIX" ]; then
-    if [ -f "${HOME}/.local/share/token-usage/install.conf" ]; then
-        PREFIX=$(sed -n 's/^PREFIX=//p' "${HOME}/.local/share/token-usage/install.conf" | head -1)
+    if [ -f "${HOME}/.local/share/toktally/install.conf" ]; then
+        PREFIX=$(sed -n 's/^PREFIX=//p' "${HOME}/.local/share/toktally/install.conf" | head -1)
     else
         PREFIX="${HOME}/.local"
     fi
 fi
 
-CONF="${PREFIX}/share/token-usage/install.conf"
+CONF="${PREFIX}/share/toktally/install.conf"
 if [ -z "$SRC" ] && [ -f "$CONF" ]; then
     SRC=$(sed -n 's/^SRC=//p' "$CONF" | head -1)
 fi
@@ -88,9 +88,9 @@ if [ -z "$SRC" ]; then
     fi
 fi
 
-[ -n "$SRC" ] || die "cannot find a source checkout; pass --src or TOKEN_USAGE_SRC"
+[ -n "$SRC" ] || die "cannot find a source checkout; pass --src or TOKTALLY_SRC"
 
-if [ -z "${TOKEN_USAGE_SKIP_PULL:-}" ] && [ -d "$SRC/.git" ]; then
+if [ -z "${TOKTALLY_SKIP_PULL:-${TOKEN_USAGE_SKIP_PULL:-}}" ] && [ -d "$SRC/.git" ]; then
     command -v git >/dev/null 2>&1 || die "git is required to update $SRC"
     if git -C "$SRC" remote get-url origin >/dev/null 2>&1; then
         git -C "$SRC" pull --ff-only
@@ -101,8 +101,8 @@ INSTALLER=""
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd) || script_dir=""
 if [ -n "$script_dir" ] && [ -x "$script_dir/install.sh" ]; then
     INSTALLER="$script_dir/install.sh"
-elif [ -x "${PREFIX}/share/token-usage/install.sh" ]; then
-    INSTALLER="${PREFIX}/share/token-usage/install.sh"
+elif [ -x "${PREFIX}/share/toktally/install.sh" ]; then
+    INSTALLER="${PREFIX}/share/toktally/install.sh"
 elif [ -x "$SRC/scripts/install.sh" ]; then
     INSTALLER="$SRC/scripts/install.sh"
 else

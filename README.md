@@ -1,11 +1,11 @@
-# token-usage
+# toktally
 
 [![build](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml/badge.svg)](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/mintychochip/token-usage?logo=github&label=release)](https://github.com/mintychochip/token-usage/releases)
 [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/mintychochip/token-usage/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Cross-harness token-usage store. Plugins map whatever a coding agent emits — a
+Cross-harness toktally store. Plugins map whatever a coding agent emits — a
 session hook, a global `/usage` snapshot, or a partial session fragment — into
 one observation. A Rust API persists it so a later read returns the same
 totals for the same harness/session identity.
@@ -27,7 +27,7 @@ cd token-usage
 ./scripts/update.sh           # git pull --ff-only, then reinstall
 ```
 
-This puts `token-usage-reporter` and `token-usage-api` in `$PREFIX/bin` and copies host wrappers to `$PREFIX/share/token-usage/plugins`. Cargo is required for a source build.
+This puts `toktally` and `toktally-api` in `$PREFIX/bin` and copies host wrappers to `$PREFIX/share/toktally/plugins`. Cargo is required for a source build.
 
 ## Quick start
 
@@ -35,12 +35,12 @@ This puts `token-usage-reporter` and `token-usage-api` in `$PREFIX/bin` and copi
 git clone https://github.com/mintychochip/token-usage.git
 cd token-usage
 cargo build --workspace
-TOKEN_USAGE_STORE=./store.json TOKEN_USAGE_BIND=127.0.0.1:9473 \
-  cargo run -p token-usage-cli --bin token-usage-api
+TOKTALLY_STORE=./store.json TOKTALLY_BIND=127.0.0.1:9473 \
+  cargo run -p toktally-cli --bin toktally-api
 ```
 
 ```bash
-TOKEN_USAGE_STORE=./store.json cargo run -p token-usage-cli --bin token-usage-reporter -- \
+TOKTALLY_STORE=./store.json cargo run -p toktally-cli --bin toktally -- \
   ingest --adapter hermes --file crates/adapters/fixtures/hermes-session.json
 ```
 
@@ -48,12 +48,12 @@ You do **not** need a hosted API. Plugins write a **local** store. GitHub is
 the remote: a gist or a directory you commit. `gh` must be logged in.
 
 ```bash
-token-usage-reporter publish --gist            # secret gist (includes sessions)
-token-usage-reporter publish --gist --public   # summary + shields badge only
-token-usage-reporter pull --gist               # restore sessions from that gist
+toktally publish --gist            # secret gist (includes sessions)
+toktally publish --gist --public   # summary + shields badge only
+toktally pull --gist               # restore sessions from that gist
 
-token-usage-reporter publish --dir ./usage --url https://you.github.io/usage
-token-usage-reporter pull --dir ./usage
+toktally publish --dir ./usage --url https://you.github.io/usage
+toktally pull --dir ./usage
 ```
 
 `publish` prints paste snippets (also `snippets.md` in a directory publish):
@@ -63,7 +63,7 @@ token-usage-reporter pull --dir ./usage
 ```
 
 ```html
-<div class="token-usage-card" data-summary-url="https://you.github.io/usage/usage-summary.json"></div>
+<div class="toktally-card" data-summary-url="https://you.github.io/usage/usage-summary.json"></div>
 <script>
 /* inlined from embed/usage-card.js — gist raw cannot serve JS */
 </script>
@@ -81,39 +81,39 @@ next to the store as `github.json`. Point shields.io at the raw gist URL of
 Lower-level `export` / `import` still write the same files without `gh`:
 
 ```bash
-token-usage-reporter export --format summary --file usage-summary.json
-token-usage-reporter export --format shields --file usage-badge.json
-token-usage-reporter export --format jsonl --file usage.jsonl
+toktally export --format summary --file usage-summary.json
+toktally export --format shields --file usage-badge.json
+toktally export --format jsonl --file usage.jsonl
 ```
 
 `export --format summary` includes `estimated_cost_usd` when the host named a
 model we can price. Rates come from OpenRouter (`GET /api/v1/models`), cached
 next to the store as `prices.json`. You do not submit $/token. Override with
-`TOKEN_USAGE_PRICES=/path/to/prices.json`. Set `TOKEN_USAGE_PRICES_FETCH=0` to
+`TOKTALLY_PRICES=/path/to/prices.json`. Set `TOKTALLY_PRICES_FETCH=0` to
 skip the network. Host ids like `opus-5-1m` price as `opus-5` when that is
 what the catalog has. No model or unknown model means no cost.
 
-A local `token-usage-api` still exists if you want HTTP on loopback. A public
-`api.mintychochip.dev` is optional and should stay `TOKEN_USAGE_STATELESS=1`
+A local `toktally-api` still exists if you want HTTP on loopback. A public
+`api.mintychochip.dev` is optional and should stay `TOKTALLY_STATELESS=1`
 if you run one at all.
 
 On first ingest or `list` for a harness, the reporter walks that host's on-disk
 sessions (Grok `signals.json`, Pi/oh-my-pi JSONL, Codex/Claude JSONL, and other
 JSON trees under the harness home) and stores each mapped session. Point
-`--home` / `TOKEN_USAGE_HARNESS_HOME` at the directory that contains `.grok`,
+`--home` / `TOKTALLY_HARNESS_HOME` at the directory that contains `.grok`,
 `.pi`, `.omp`, and friends.
 
 ```bash
-token-usage-reporter sync --harness grok
-token-usage-reporter sync --force
-token-usage-reporter sync --interval 3600   # re-read sessions and `{harness}/usage.json`
+toktally sync --harness grok
+toktally sync --force
+toktally sync --interval 3600   # re-read sessions and `{harness}/usage.json`
 ```
 
 ## Harnesses
 
 Claude Code, Codex, Grok, oh-my-pi, jcode, Hermes, OpenCode, Gemini CLI,
 Aider, Goose, Amp, Droid, Cline, and Pi. Host wrappers live under
-`plugins/` and exec `token-usage-reporter`; they do not parse usage themselves.
+`plugins/` and exec `toktally`; they do not parse usage themselves.
 
 See [docs/living-specs/token-usage.md](docs/living-specs/token-usage.md) for
 invariants and [CONTRIBUTING.md](CONTRIBUTING.md) to add another host.

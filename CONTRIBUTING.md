@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping with token-usage. This repo is a Rust workspace: a shared
+Thanks for helping with toktally. This repo is a Rust workspace: a shared
 domain and store, a reporter/API, and thin host wrappers that exec the reporter.
 
 Please read [docs/living-specs/token-usage.md](docs/living-specs/token-usage.md)
@@ -26,7 +26,7 @@ the reporter would persist as user config.
 | `crates/domain` | Pure types. No HTTP, no filesystem. |
 | `crates/store` | Durable JSON store. Same `(harness, session_id)` updates in place. |
 | `crates/adapters` | Translate harness JSON into domain observations. |
-| `crates/cli` | `token-usage-api` and `token-usage-reporter`. |
+| `crates/cli` | `toktally-api` and `toktally`. |
 | `plugins/<harness>` | Host-native hooks/manifests. Scripts only exec the reporter. |
 | `scripts/` | `install.sh` and `update.sh` for prefix installs. |
 | `crates/sync` | Walk existing host session stores; first-use ingest. |
@@ -39,7 +39,7 @@ the reporter would persist as user config.
 3. Map that fixture in `crates/adapters` and assert through the real store
    (ingest, then read back the fixture's own counts).
 4. Add `plugins/<slug>/scripts/report.sh` that runs
-   `token-usage-reporter ingest --adapter <slug>`.
+   `toktally ingest --adapter <slug>`.
    Do not parse token fields in the script.
 5. Add a host-native manifest (`plugin.json`, `hooks.json`, `HOOK.yaml`,
    `gemini-extension.json`, …) that the host actually loads.
@@ -56,7 +56,7 @@ through the fixture.
 - Match existing commit style: imperative subject, one concern per commit.
 - Link an issue when there is one (`Fixes #N`).
 - Include tests for behavior changes.
-- Host wrappers must keep calling `token-usage-reporter`.
+- Host wrappers must keep calling `toktally`.
 
 Open a draft PR early if you want design feedback on a new harness payload.
 

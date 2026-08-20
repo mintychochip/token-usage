@@ -1,4 +1,4 @@
-//! Drive the shipped token-usage-reporter binary on fixture payloads.
+//! Drive the shipped toktally binary on fixture payloads.
 
 use std::io::Write;
 use std::process::{Command, Stdio};
@@ -6,7 +6,7 @@ use std::process::{Command, Stdio};
 use tempfile::tempdir;
 
 fn reporter() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_token-usage-reporter"))
+    Command::new(env!("CARGO_BIN_EXE_toktally"))
 }
 
 #[test]
@@ -324,7 +324,7 @@ fn export_summary_is_chartable_and_has_no_session_ids() {
 
     let summary_path = dir.path().join("usage-summary.json");
     let export = reporter()
-        .env("TOKEN_USAGE_PRICES_FETCH", "0")
+        .env("TOKTALLY_PRICES_FETCH", "0")
         .arg("--store")
         .arg(&store)
         .arg("--home")
@@ -378,8 +378,8 @@ fn export_summary_estimates_cost_from_internal_price_file() {
     .unwrap();
     let summary_path = dir.path().join("usage-summary.json");
     let export = reporter()
-        .env("TOKEN_USAGE_PRICES", &prices)
-        .env("TOKEN_USAGE_PRICES_FETCH", "0")
+        .env("TOKTALLY_PRICES", &prices)
+        .env("TOKTALLY_PRICES_FETCH", "0")
         .arg("--store")
         .arg(&store)
         .arg("--home")

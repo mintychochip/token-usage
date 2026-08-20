@@ -1,11 +1,11 @@
 //! Drive the shipped FileStore: ingest, read-back, merge, distinct harnesses.
 
 use tempfile::tempdir;
-use token_usage_domain::{
+use toktally_domain::{
     ExtraCounts, Harness, ObservationIdentity, ObservationSource, SessionId,
     SessionStoreCompleteness, UsageCounts, UsageObservation,
 };
-use token_usage_store::FileStore;
+use toktally_store::FileStore;
 
 fn identity(harness: Harness, session: &str) -> ObservationIdentity {
     ObservationIdentity::new(harness, SessionId::parse(session).unwrap())

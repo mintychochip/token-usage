@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install token-usage-reporter and token-usage-api.
+# Install toktally and toktally-api.
 #
 # From a checkout:
 #   ./scripts/install.sh
@@ -9,23 +9,23 @@
 #   curl -fsSL https://raw.githubusercontent.com/mintychochip/token-usage/master/scripts/install.sh | sh
 set -eu
 
-REPO_URL="${TOKEN_USAGE_REPO:-https://github.com/mintychochip/token-usage.git}"
+REPO_URL="${TOKTALLY_REPO:-${TOKEN_USAGE_REPO:-https://github.com/mintychochip/token-usage.git}}"
 
 usage() {
     cat <<'EOF'
 Usage: install.sh [options]
 
-Install token-usage-reporter and token-usage-api into PREFIX/bin, and copy
-host wrappers to PREFIX/share/token-usage/plugins.
+Install toktally and toktally-api into PREFIX/bin, and copy
+host wrappers to PREFIX/share/toktally/plugins.
 
   --prefix DIR     Install prefix (default: $HOME/.local, or $PREFIX)
-  --src DIR        Source checkout to build (default: detect or PREFIX/src/token-usage)
-  --skip-build     Copy binaries from TOKEN_USAGE_BIN_DIR instead of cargo
+  --src DIR        Source checkout to build (default: detect or PREFIX/src/toktally)
+  --skip-build     Copy binaries from TOKTALLY_BIN_DIR instead of cargo
   -h, --help       Show this help
 
 Environment:
-  PREFIX, TOKEN_USAGE_SRC, TOKEN_USAGE_BIN_DIR, TOKEN_USAGE_SKIP_BUILD,
-  TOKEN_USAGE_REPO
+  PREFIX, TOKTALLY_SRC, TOKTALLY_BIN_DIR, TOKTALLY_SKIP_BUILD,
+  TOKTALLY_REPO
 EOF
 }
 
@@ -39,8 +39,8 @@ is_checkout() {
 }
 
 PREFIX="${PREFIX:-${HOME}/.local}"
-SRC="${TOKEN_USAGE_SRC:-}"
-SKIP_BUILD="${TOKEN_USAGE_SKIP_BUILD:-}"
+SRC="${TOKTALLY_SRC:-${TOKEN_USAGE_SRC:-}}"
+SKIP_BUILD="${TOKTALLY_SKIP_BUILD:-${TOKEN_USAGE_SKIP_BUILD:-}}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -78,7 +78,7 @@ done
 
 [ -n "$PREFIX" ] || die "PREFIX is empty"
 BINDIR="${PREFIX}/bin"
-SHAREDIR="${PREFIX}/share/token-usage"
+SHAREDIR="${PREFIX}/share/toktally"
 
 resolve_src() {
     if [ -n "$SRC" ]; then
@@ -94,7 +94,7 @@ resolve_src() {
         dirname -- "$script_dir"
         return
     fi
-    echo "${PREFIX}/src/token-usage"
+    echo "${PREFIX}/src/toktally"
 }
 
 SRC=$(resolve_src)
@@ -111,27 +111,27 @@ ensure_src() {
     else
         git clone --depth 1 "$REPO_URL" "$SRC"
     fi
-    is_checkout "$SRC" || die "clone at $SRC is not a token-usage checkout"
+    is_checkout "$SRC" || die "clone at $SRC is not a toktally checkout"
 }
 
 ensure_src
 
-BIN_DIR="${TOKEN_USAGE_BIN_DIR:-}"
+BIN_DIR="${TOKTALLY_BIN_DIR:-${TOKEN_USAGE_BIN_DIR:-}}"
 if [ -z "$SKIP_BUILD" ]; then
     command -v cargo >/dev/null 2>&1 || die "cargo is required (https://rustup.rs)"
-    (cd "$SRC" && cargo build --release -p token-usage-cli --bins)
+    (cd "$SRC" && cargo build --release -p toktally-cli --bins)
     BIN_DIR="${SRC}/target/release"
 else
-    [ -n "$BIN_DIR" ] || die "TOKEN_USAGE_SKIP_BUILD requires TOKEN_USAGE_BIN_DIR"
+    [ -n "$BIN_DIR" ] || die "TOKTALLY_SKIP_BUILD requires TOKTALLY_BIN_DIR"
 fi
 
-[ -x "$BIN_DIR/token-usage-reporter" ] || die "missing $BIN_DIR/token-usage-reporter"
-[ -x "$BIN_DIR/token-usage-api" ] || die "missing $BIN_DIR/token-usage-api"
+[ -x "$BIN_DIR/toktally" ] || die "missing $BIN_DIR/toktally"
+[ -x "$BIN_DIR/toktally-api" ] || die "missing $BIN_DIR/toktally-api"
 
 mkdir -p "$BINDIR" "$SHAREDIR"
-cp "$BIN_DIR/token-usage-reporter" "$BINDIR/token-usage-reporter"
-cp "$BIN_DIR/token-usage-api" "$BINDIR/token-usage-api"
-chmod 0755 "$BINDIR/token-usage-reporter" "$BINDIR/token-usage-api"
+cp "$BIN_DIR/toktally" "$BINDIR/toktally"
+cp "$BIN_DIR/toktally-api" "$BINDIR/toktally-api"
+chmod 0755 "$BINDIR/toktally" "$BINDIR/toktally-api"
 
 rm -rf "$SHAREDIR/plugins"
 cp -R "$SRC/plugins" "$SHAREDIR/plugins"
@@ -144,7 +144,7 @@ chmod 0755 "$SHAREDIR/install.sh" "$SHAREDIR/update.sh"
     printf 'SRC=%s\n' "$SRC"
 } >"$SHAREDIR/install.conf"
 
-echo "installed token-usage-reporter and token-usage-api to $BINDIR"
+echo "installed toktally and toktally-api to $BINDIR"
 echo "plugins copied to $SHAREDIR/plugins"
 case ":$PATH:" in
     *":$BINDIR:"*) ;;

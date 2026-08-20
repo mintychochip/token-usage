@@ -89,20 +89,20 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ matrix.use_cross }}" == "true" ]]; then
-            cross build --release --target "${{ matrix.target }}" -p token-usage-cli --bins
+            cross build --release --target "${{ matrix.target }}" -p toktally-cli --bins
           else
-            cargo build --release --target "${{ matrix.target }}" -p token-usage-cli --bins
+            cargo build --release --target "${{ matrix.target }}" -p toktally-cli --bins
           fi
 
       - name: Package release archive (Unix)
         if: matrix.format == 'tar.gz'
         shell: bash
         run: |
-          archive="token-usage-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}.tar.gz"
-          staging="token-usage-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}"
+          archive="toktally-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}.tar.gz"
+          staging="toktally-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}"
           mkdir -p "${staging}"
-          cp "target/${{ matrix.target }}/release/token-usage-reporter" "${staging}/"
-          cp "target/${{ matrix.target }}/release/token-usage-api" "${staging}/"
+          cp "target/${{ matrix.target }}/release/toktally" "${staging}/"
+          cp "target/${{ matrix.target }}/release/toktally-api" "${staging}/"
           cp README.md LICENSE "${staging}/"
           tar -czf "${archive}" "${staging}"
 
@@ -110,19 +110,19 @@ jobs:
         if: matrix.format == 'zip'
         shell: pwsh
         run: |
-          $archive = "token-usage-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}.zip"
-          $staging = "token-usage-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}"
+          $archive = "toktally-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}.zip"
+          $staging = "toktally-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}"
           New-Item -ItemType Directory -Force -Path $staging | Out-Null
-          Copy-Item "target/${{ matrix.target }}/release/token-usage-reporter.exe" $staging
-          Copy-Item "target/${{ matrix.target }}/release/token-usage-api.exe" $staging
+          Copy-Item "target/${{ matrix.target }}/release/toktally.exe" $staging
+          Copy-Item "target/${{ matrix.target }}/release/toktally-api.exe" $staging
           Copy-Item README.md, LICENSE $staging
           7z a $archive $staging
 
       - name: Upload release archive
         uses: actions/upload-artifact@v4
         with:
-          name: token-usage-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}
-          path: token-usage-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}.${{ matrix.format }}
+          name: toktally-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}
+          path: toktally-${{ needs.compute-version.outputs.tag }}-${{ matrix.target }}.${{ matrix.format }}
           if-no-files-found: error
 
   publish:
@@ -135,7 +135,7 @@ jobs:
       - name: Download release archives
         uses: actions/download-artifact@v4
         with:
-          pattern: token-usage-${{ needs.compute-version.outputs.tag }}-*
+          pattern: toktally-${{ needs.compute-version.outputs.tag }}-*
           path: dist
           merge-multiple: true
 

@@ -1,5 +1,5 @@
 {
-  "description": "Sync OpenCode session usage into the token-usage store",
+  "description": "Sync OpenCode session usage into the toktally store",
   "hooks": {
     "session.idle": [
       {

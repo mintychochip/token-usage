@@ -17,6 +17,6 @@ cargo test --workspace
 ## Checklist
 
 - [ ] Tests cover the shipped path (adapter/store/API), not a re-implementation
-- [ ] Host wrappers still exec `token-usage-reporter` (if plugins changed)
+- [ ] Host wrappers still exec `toktally` (if plugins changed)
 - [ ] Living spec updated when identity, merge, or harness set changed
 - [ ] `cargo fmt --all` and `cargo test --workspace` pass

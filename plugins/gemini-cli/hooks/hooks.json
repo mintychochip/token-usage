@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "name": "token-usage",
+            "name": "toktally",
             "type": "command",
             "command": "$GEMINI_PROJECT_DIR/scripts/report.sh",
             "timeout": 10000

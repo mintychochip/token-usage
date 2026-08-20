@@ -1,4 +1,4 @@
-name: token-usage
+name: toktally
 description: Sync Hermes post_api_request usage into the shared store
 events:
   - post_api_request

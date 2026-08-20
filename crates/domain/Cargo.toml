@@ -1,9 +1,9 @@
 [package]
-name = "token-usage-domain"
+name = "toktally-domain"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Pure domain types for cross-harness token-usage observations"
+description = "Pure domain types for cross-harness token usage observations"
 
 [dependencies]
 serde.workspace = true

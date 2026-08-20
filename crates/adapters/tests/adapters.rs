@@ -2,11 +2,11 @@
 
 use serde_json::Value;
 use tempfile::tempdir;
-use token_usage_adapters::adapt;
-use token_usage_domain::{
+use toktally_adapters::adapt;
+use toktally_domain::{
     Harness, ObservationIdentity, ObservationSource, SessionId, SessionStoreCompleteness,
 };
-use token_usage_store::FileStore;
+use toktally_store::FileStore;
 
 fn fixture(name: &str) -> Value {
     let path = format!("{}/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));
@@ -20,7 +20,7 @@ fn store() -> (tempfile::TempDir, FileStore) {
     (dir, store)
 }
 
-fn ingest_and_reload(harness: Harness, payload: &Value) -> token_usage_domain::UsageObservation {
+fn ingest_and_reload(harness: Harness, payload: &Value) -> toktally_domain::UsageObservation {
     let (_dir, store) = store();
     let observation = adapt(harness, payload).expect("adapt");
     store.ingest(observation.clone()).unwrap();
