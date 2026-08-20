@@ -6,10 +6,10 @@
 #   PREFIX=$HOME/.local ./scripts/install.sh
 #
 # From the web:
-#   curl -fsSL https://raw.githubusercontent.com/mintychochip/token-usage/master/scripts/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/mintychochip/toktally/master/scripts/install.sh | sh
 set -eu
 
-REPO_URL="${TOKTALLY_REPO:-${TOKEN_USAGE_REPO:-https://github.com/mintychochip/token-usage.git}}"
+REPO_URL="${TOKTALLY_REPO:-${TOKEN_USAGE_REPO:-https://github.com/mintychochip/toktally.git}}"
 
 usage() {
     cat <<'EOF'

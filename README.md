@@ -1,8 +1,8 @@
 # toktally
 
-[![build](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml/badge.svg)](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/mintychochip/token-usage?logo=github&label=release)](https://github.com/mintychochip/token-usage/releases)
-[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/mintychochip/token-usage/releases)
+[![build](https://github.com/mintychochip/toktally/actions/workflows/ci.yml/badge.svg)](https://github.com/mintychochip/toktally/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mintychochip/toktally?logo=github&label=release)](https://github.com/mintychochip/toktally/releases)
+[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macos%20%7C%20windows-lightgrey)](https://github.com/mintychochip/toktally/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Cross-harness toktally store. Plugins map whatever a coding agent emits — a
@@ -10,19 +10,19 @@ session hook, a global `/usage` snapshot, or a partial session fragment — into
 one observation. A Rust API persists it so a later read returns the same
 totals for the same harness/session identity.
 
-Repository: [github.com/mintychochip/token-usage](https://github.com/mintychochip/token-usage)
+Repository: [github.com/mintychochip/toktally](https://github.com/mintychochip/toktally)
 
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mintychochip/token-usage/master/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/mintychochip/toktally/master/scripts/install.sh | sh
 ```
 
 From a checkout:
 
 ```bash
-git clone https://github.com/mintychochip/token-usage.git
-cd token-usage
+git clone https://github.com/mintychochip/toktally.git
+cd toktally
 ./scripts/install.sh          # PREFIX=$HOME/.local by default
 ./scripts/update.sh           # git pull --ff-only, then reinstall
 ```
@@ -32,8 +32,8 @@ This puts `toktally` and `toktally-api` in `$PREFIX/bin` and copies host wrapper
 ## Quick start
 
 ```bash
-git clone https://github.com/mintychochip/token-usage.git
-cd token-usage
+git clone https://github.com/mintychochip/toktally.git
+cd toktally
 cargo build --workspace
 TOKTALLY_STORE=./store.json TOKTALLY_BIND=127.0.0.1:9473 \
   cargo run -p toktally-cli --bin toktally-api
