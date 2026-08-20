@@ -1,5 +1,5 @@
 {
-  "description": "Sync oh-my-pi session stats into the token-usage store",
+  "description": "Sync oh-my-pi session stats into the toktally store",
   "hooks": {
     "Stop": [
       {

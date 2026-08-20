@@ -1,5 +1,5 @@
 {
-  "description": "Sync Grok usage fragments into the token-usage store",
+  "description": "Sync Grok usage fragments into the toktally store",
   "hooks": {
     "Stop": [
       {

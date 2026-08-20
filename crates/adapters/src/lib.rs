@@ -4,7 +4,7 @@
 //! belongs to the store.
 
 use serde_json::Value;
-use token_usage_domain::{
+use toktally_domain::{
     ExtraCounts, Harness, ObservationIdentity, ObservationSource, SessionId,
     SessionStoreCompleteness, UsageCounts, UsageObservation,
 };

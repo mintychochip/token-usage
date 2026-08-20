@@ -15,11 +15,11 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::Value;
-use token_usage_adapters::adapt;
-use token_usage_domain::{Harness, ObservationIdentity, SessionId};
-use token_usage_store::{FileStore, StoreError};
-use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 use tokio::net::TcpListener;
+use toktally_adapters::adapt;
+use toktally_domain::{Harness, ObservationIdentity, SessionId};
+use toktally_store::{FileStore, StoreError};
+use toktally_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 
 pub use components::{
     gist_raw_base, github_badge_markdown, join_published_url, publish_snippets,
@@ -254,14 +254,14 @@ pub enum ApiError {
     Internal(String),
 }
 
-impl From<token_usage_domain::DomainError> for ApiError {
-    fn from(err: token_usage_domain::DomainError) -> Self {
+impl From<toktally_domain::DomainError> for ApiError {
+    fn from(err: toktally_domain::DomainError) -> Self {
         ApiError::BadRequest(err.to_string())
     }
 }
 
-impl From<token_usage_adapters::AdaptError> for ApiError {
-    fn from(err: token_usage_adapters::AdaptError) -> Self {
+impl From<toktally_adapters::AdaptError> for ApiError {
+    fn from(err: toktally_adapters::AdaptError) -> Self {
         ApiError::BadRequest(err.to_string())
     }
 }
@@ -272,8 +272,8 @@ impl From<StoreError> for ApiError {
     }
 }
 
-impl From<token_usage_sync::SyncError> for ApiError {
-    fn from(err: token_usage_sync::SyncError) -> Self {
+impl From<toktally_sync::SyncError> for ApiError {
+    fn from(err: toktally_sync::SyncError) -> Self {
         ApiError::Internal(err.to_string())
     }
 }

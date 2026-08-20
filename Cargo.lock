@@ -872,69 +872,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "token-usage-adapters"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "token-usage-domain",
- "token-usage-store",
-]
-
-[[package]]
-name = "token-usage-cli"
-version = "0.1.0"
-dependencies = [
- "axum",
- "clap",
- "http-body-util",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "token-usage-adapters",
- "token-usage-domain",
- "token-usage-store",
- "token-usage-sync",
- "tokio",
- "tower",
- "ureq",
-]
-
-[[package]]
-name = "token-usage-domain"
-version = "0.1.0"
-dependencies = [
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "token-usage-store"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "token-usage-domain",
-]
-
-[[package]]
-name = "token-usage-sync"
-version = "0.1.0"
-dependencies = [
- "serde_json",
- "tempfile",
- "thiserror",
- "token-usage-adapters",
- "token-usage-domain",
- "token-usage-store",
-]
-
-[[package]]
 name = "tokio"
 version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -959,6 +896,69 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.3",
+]
+
+[[package]]
+name = "toktally-adapters"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "toktally-domain",
+ "toktally-store",
+]
+
+[[package]]
+name = "toktally-cli"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "clap",
+ "http-body-util",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "toktally-adapters",
+ "toktally-domain",
+ "toktally-store",
+ "toktally-sync",
+ "tower",
+ "ureq",
+]
+
+[[package]]
+name = "toktally-domain"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "toktally-store"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "toktally-domain",
+]
+
+[[package]]
+name = "toktally-sync"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "toktally-adapters",
+ "toktally-domain",
+ "toktally-store",
 ]
 
 [[package]]

@@ -40,7 +40,7 @@ snapshots, not deltas). Different harnesses stay distinct.
 
 ### 1. Existing HTTP observation API (remote process)
 
-**Shape.** The reporter POSTs JSON to a reachable `token-usage-api`:
+**Shape.** The reporter POSTs JSON to a reachable `toktally-api`:
 
 - Canonical snapshot: `POST /v1/observations` with the table above
 - Raw host payload: `POST /v1/ingest/{harness}` (server adapts, then merges)
@@ -50,8 +50,8 @@ snapshots, not deltas). Different harnesses stay distinct.
 The server keeps `FileStore` (or an equivalent keyed map). Merge is the
 same `ingest` last-write-wins already tested in `crates/store`.
 
-**Plugin stateless?** Yes. Wrappers still `exec token-usage-reporter ingest`.
-The reporter becomes a POST client. No local `~/.token-usage/store.json`, no
+**Plugin stateless?** Yes. Wrappers still `exec toktally ingest`.
+The reporter becomes a POST client. No local `~/.toktally/store.json`, no
 plugin-owned last-synced file.
 
 **Same-identity merge remotely?** Yes, in the API process: replace the row for
@@ -118,13 +118,13 @@ You do not need `api.mintychochip.dev` for sync. The reporter writes a local
 `FileStore`, then `publish` / `pull` copies it to GitHub:
 
 ```bash
-token-usage-reporter publish --gist            # needs `gh`; secret gist includes JSONL
-token-usage-reporter publish --gist --public   # usage-summary.json + usage-badge.json
-token-usage-reporter pull --gist
-token-usage-reporter publish --dir ./usage
+toktally publish --gist            # needs `gh`; secret gist includes JSONL
+toktally publish --gist --public   # usage-summary.json + usage-badge.json
+toktally pull --gist
+toktally publish --dir ./usage
 ```
 
-`gh` is the transport (`TOKEN_USAGE_GH` overrides the binary). The gist id is
+`gh` is the transport (`TOKTALLY_GH` overrides the binary). The gist id is
 remembered in `github.json` next to the store. A public gist never includes
 `usage.jsonl` — session ids stay off the public internet.
 
@@ -151,7 +151,7 @@ kept on the API host.
 Totals live on the machine that ran the reporter, plus whatever GitHub
 target the user published:
 
-- default: local `FileStore` (`TOKEN_USAGE_STORE`, usually `~/.token-usage/store.json`)
+- default: local `FileStore` (`TOKTALLY_STORE`, usually `~/.toktally/store.json`)
 - GitHub: `publish --gist` (secret JSONL) or `publish --dir`
 - portable: one `WireObservation` per line (`export` / `import`)
 

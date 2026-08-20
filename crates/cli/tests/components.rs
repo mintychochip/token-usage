@@ -1,14 +1,14 @@
 //! GitHub and website paste snippets built from a real store-backed summary.
 
 use tempfile::tempdir;
-use token_usage_cli::{
+use toktally_cli::{
     github_badge_markdown, render_summary_card, summarize, website_embed_html, USAGE_CARD_JS,
 };
-use token_usage_domain::{
+use toktally_domain::{
     Harness, ObservationIdentity, ObservationSource, SessionId, SessionStoreCompleteness,
     UsageCounts, UsageObservation,
 };
-use token_usage_store::FileStore;
+use toktally_store::FileStore;
 
 #[test]
 fn github_badge_markdown_points_shields_at_the_badge_json_url() {

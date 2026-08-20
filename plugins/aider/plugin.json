@@ -1,6 +1,6 @@
 {
-  "name": "token-usage",
+  "name": "toktally",
   "description": "Report Aider /tokens snapshots to the shared Rust store. Aider has no native hook runtime; pipe a usage dump to the reporter.",
   "version": "0.1.0",
-  "reporter": "token-usage-reporter"
+  "reporter": "toktally"
 }

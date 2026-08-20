@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use serde_json::Value;
-use token_usage_domain::UsageCounts;
+use toktally_domain::UsageCounts;
 
 /// USD per token for one model.
 #[derive(Debug, Clone, PartialEq)]
@@ -168,7 +168,9 @@ pub fn estimate_cost_usd(
 
 /// Load prices: `TOKEN_USAGE_PRICES` file, store-adjacent cache, then fetch.
 pub fn load_price_table(store_path: &Path) -> Option<PriceTable> {
-    if let Some(path) = std::env::var_os("TOKEN_USAGE_PRICES") {
+    if let Some(path) =
+        std::env::var_os("TOKTALLY_PRICES").or_else(|| std::env::var_os("TOKEN_USAGE_PRICES"))
+    {
         return parse_prices_file(Path::new(&path));
     }
     let cache = store_path
@@ -178,10 +180,13 @@ pub fn load_price_table(store_path: &Path) -> Option<PriceTable> {
     if let Some(table) = parse_prices_file(&cache) {
         return Some(table);
     }
-    if std::env::var("TOKEN_USAGE_PRICES_FETCH").ok().as_deref() == Some("0") {
+    let fetch_opt = std::env::var("TOKTALLY_PRICES_FETCH")
+        .or_else(|_| std::env::var("TOKEN_USAGE_PRICES_FETCH"));
+    if fetch_opt.ok().as_deref() == Some("0") {
         return None;
     }
-    let url = std::env::var("TOKEN_USAGE_PRICES_URL")
+    let url = std::env::var("TOKTALLY_PRICES_URL")
+        .or_else(|_| std::env::var("TOKEN_USAGE_PRICES_URL"))
         .unwrap_or_else(|_| "https://openrouter.ai/api/v1/models".to_string());
     let raw = fetch_prices_json(&url)?;
     if let Ok(value) = serde_json::from_str::<Value>(&raw) {

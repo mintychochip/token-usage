@@ -4,27 +4,27 @@ use std::io::{self, Read};
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use token_usage_adapters::adapt;
-use token_usage_cli::{
+use toktally_adapters::adapt;
+use toktally_cli::{
     bundle_from_store, gh_login, gist_raw_base, load_github_config, publish_snippets, pull_dir,
     pull_gist, push_gist, save_github_config, shields_badge, summarize_priced, write_bundle,
     WireHarnessSync, WireObservation, WireSyncStatus, USAGE_CARD_JS,
 };
-use token_usage_domain::{Harness, ObservationIdentity, SessionId};
-use token_usage_store::FileStore;
-use token_usage_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
+use toktally_domain::{Harness, ObservationIdentity, SessionId};
+use toktally_store::FileStore;
+use toktally_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 
 #[derive(Parser)]
 #[command(
-    name = "token-usage-reporter",
-    about = "Report harness token usage into the shared store"
+    name = "toktally",
+    about = "Track token usage across all your AI coding agents"
 )]
 struct Cli {
     /// Path to the durable store (JSON file).
-    #[arg(long, env = "TOKEN_USAGE_STORE", global = true)]
+    #[arg(long, env = "TOKTALLY_STORE", global = true)]
     store: Option<PathBuf>,
     /// Root that contains `.grok`, `.pi`, `.omp`, and other harness dirs.
-    #[arg(long, env = "TOKEN_USAGE_HARNESS_HOME", global = true)]
+    #[arg(long, env = "TOKTALLY_HARNESS_HOME", global = true)]
     home: Option<PathBuf>,
     #[command(subcommand)]
     command: Command,
@@ -110,10 +110,14 @@ fn main() {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    let store_path = cli.store.unwrap_or_else(default_store_path);
+    let store_path = cli
+        .store
+        .or_else(|| std::env::var_os("TOKEN_USAGE_STORE").map(PathBuf::from))
+        .unwrap_or_else(default_store_path);
     let store = FileStore::open(&store_path)?;
     let roots = cli
         .home
+        .or_else(|| std::env::var_os("TOKEN_USAGE_HARNESS_HOME").map(PathBuf::from))
         .map(|home| SyncRoots { home })
         .unwrap_or_else(SyncRoots::from_env);
     match cli.command {
@@ -167,12 +171,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     buf
                 }
                 "summary" => {
-                    let prices = token_usage_cli::load_price_table(&store_path);
+                    let prices = toktally_cli::load_price_table(&store_path);
                     let summary = summarize_priced(&listed, unix_now(), prices.as_ref());
                     format!("{}\n", serde_json::to_string_pretty(&summary)?)
                 }
                 "shields" => {
-                    let prices = token_usage_cli::load_price_table(&store_path);
+                    let prices = toktally_cli::load_price_table(&store_path);
                     let badge =
                         shields_badge(&summarize_priced(&listed, unix_now(), prices.as_ref()));
                     format!("{}\n", serde_json::to_string_pretty(&badge)?)
@@ -273,7 +277,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 Some(id) => Some(id.to_string()),
             };
             let work = std::env::temp_dir().join(format!(
-                "token-usage-publish-{}-{}",
+                "toktally-publish-{}-{}",
                 std::process::id(),
                 unix_now()
             ));
@@ -321,6 +325,6 @@ fn default_store_path() -> PathBuf {
     std::env::var_os("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".token-usage")
+        .join(".toktally")
         .join("store.json")
 }

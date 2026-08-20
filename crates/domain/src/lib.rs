@@ -1,4 +1,4 @@
-//! Pure domain types for token-usage observations.
+//! Pure domain types for toktally observations.
 //!
 //! No HTTP, no filesystem. Adapters translate harness payloads into these
 //! types; the store is the write path.

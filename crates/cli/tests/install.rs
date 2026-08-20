@@ -12,7 +12,7 @@ fn repo_root() -> PathBuf {
 }
 
 fn bin_dir() -> PathBuf {
-    Path::new(env!("CARGO_BIN_EXE_token-usage-reporter"))
+    Path::new(env!("CARGO_BIN_EXE_toktally"))
         .parent()
         .expect("bin dir")
         .to_path_buf()
@@ -21,10 +21,10 @@ fn bin_dir() -> PathBuf {
 fn run_script(script: &str, prefix: &Path, extra_env: &[(&str, &Path)]) -> std::process::Output {
     let mut cmd = Command::new(repo_root().join("scripts").join(script));
     cmd.env("PREFIX", prefix)
-        .env("TOKEN_USAGE_SKIP_BUILD", "1")
-        .env("TOKEN_USAGE_SKIP_PULL", "1")
-        .env("TOKEN_USAGE_BIN_DIR", bin_dir())
-        .env("TOKEN_USAGE_SRC", repo_root());
+        .env("TOKTALLY_SKIP_BUILD", "1")
+        .env("TOKTALLY_SKIP_PULL", "1")
+        .env("TOKTALLY_BIN_DIR", bin_dir())
+        .env("TOKTALLY_SRC", repo_root());
     for (key, value) in extra_env {
         cmd.env(key, value);
     }
@@ -58,8 +58,8 @@ fn install_puts_reporter_and_api_on_the_prefix_path() {
         String::from_utf8_lossy(&out.stdout)
     );
 
-    let reporter = prefix.join("bin/token-usage-reporter");
-    let api = prefix.join("bin/token-usage-api");
+    let reporter = prefix.join("bin/toktally");
+    let api = prefix.join("bin/toktally-api");
     assert!(reporter.is_file(), "missing {}", reporter.display());
     assert!(api.is_file(), "missing {}", api.display());
 
@@ -68,14 +68,14 @@ fn install_puts_reporter_and_api_on_the_prefix_path() {
     let help = String::from_utf8_lossy(&version.stdout);
     assert!(help.contains("ingest"), "{help}");
 
-    let plugins = prefix.join("share/token-usage/plugins/hermes/scripts/report.sh");
+    let plugins = prefix.join("share/toktally/plugins/hermes/scripts/report.sh");
     assert!(
         plugins.is_file(),
         "missing plugin wrapper {}",
         plugins.display()
     );
     let wrapper = fs::read_to_string(&plugins).unwrap();
-    assert!(wrapper.contains("token-usage-reporter"));
+    assert!(wrapper.contains("toktally"));
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn installed_reporter_ingests_a_fixture() {
 
     let store = dir.path().join("store.json");
     let fixture = repo_root().join("crates/adapters/fixtures/hermes-session.json");
-    let ingest = Command::new(prefix.join("bin/token-usage-reporter"))
+    let ingest = Command::new(prefix.join("bin/toktally"))
         .arg("--store")
         .arg(&store)
         .args(["ingest", "--adapter", "hermes", "--file"])
@@ -119,7 +119,7 @@ fn update_reinstalls_into_the_same_prefix() {
         String::from_utf8_lossy(&first.stderr)
     );
 
-    fs::remove_file(prefix.join("bin/token-usage-reporter")).unwrap();
+    fs::remove_file(prefix.join("bin/toktally")).unwrap();
     let updated = run_script("update.sh", &prefix, &[]);
     assert!(
         updated.status.success(),
@@ -127,6 +127,6 @@ fn update_reinstalls_into_the_same_prefix() {
         String::from_utf8_lossy(&updated.stderr),
         String::from_utf8_lossy(&updated.stdout)
     );
-    assert!(prefix.join("bin/token-usage-reporter").is_file());
-    assert!(prefix.join("bin/token-usage-api").is_file());
+    assert!(prefix.join("bin/toktally").is_file());
+    assert!(prefix.join("bin/toktally-api").is_file());
 }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::DomainError;
 
-/// A coding-agent host that can emit token-usage observations.
+/// A coding-agent host that can emit toktally observations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Harness {

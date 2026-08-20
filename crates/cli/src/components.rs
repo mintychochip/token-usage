@@ -2,13 +2,13 @@
 
 use crate::summary::UsageSummary;
 
-/// Browser script that fetches `usage-summary.json` and fills `.token-usage-card`.
+/// Browser script that fetches `usage-summary.json` and fills `.toktally-card`.
 pub const USAGE_CARD_JS: &str = include_str!("../../../embed/usage-card.js");
 
 /// Shields.io endpoint markdown for a published `usage-badge.json` URL.
 pub fn github_badge_markdown(badge_json_url: &str) -> String {
     let encoded = encode_query(badge_json_url);
-    format!("[![token usage](https://img.shields.io/endpoint?url={encoded})]")
+    format!("[![toktally](https://img.shields.io/endpoint?url={encoded})]")
 }
 
 /// HTML paste snippet that loads the published summary (no session ids).
@@ -17,7 +17,7 @@ pub fn github_badge_markdown(badge_json_url: &str) -> String {
 /// so a `<script src>` to `usage-card.js` would not run.
 pub fn website_embed_html(summary_json_url: &str) -> String {
     format!(
-        "<div class=\"token-usage-card\" data-summary-url=\"{}\"></div>\n<script>\n{}\n</script>\n",
+        "<div class=\"toktally-card\" data-summary-url=\"{}\"></div>\n<script>\n{}\n</script>\n",
         escape_attr(summary_json_url),
         USAGE_CARD_JS.trim()
     )
@@ -26,7 +26,7 @@ pub fn website_embed_html(summary_json_url: &str) -> String {
 /// Visible card text/HTML from a public summary. Never includes session ids.
 pub fn render_summary_card(summary: &UsageSummary) -> String {
     let mut line = format!(
-        "token usage {} in / {} out",
+        "toktally {} in / {} out",
         summary.input_tokens, summary.output_tokens
     );
     if let Some(cost) = summary.estimated_cost_usd {

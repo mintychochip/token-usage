@@ -1,12 +1,12 @@
 //! Drive summarize() on observations that went through the real store.
 
 use tempfile::tempdir;
-use token_usage_cli::{shields_badge, summarize};
-use token_usage_domain::{
+use toktally_cli::{shields_badge, summarize};
+use toktally_domain::{
     Harness, ObservationIdentity, ObservationSource, SessionId, SessionStoreCompleteness,
     UsageCounts, UsageObservation,
 };
-use token_usage_store::FileStore;
+use toktally_store::FileStore;
 
 #[test]
 fn summary_adds_sessions_per_harness_and_omits_session_ids() {

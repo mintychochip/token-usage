@@ -1,5 +1,5 @@
 {
-  "description": "Sync session usage into the token-usage store",
+  "description": "Sync session usage into the toktally store",
   "hooks": {
     "Stop": [
       {
