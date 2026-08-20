@@ -1,7 +1,6 @@
 //! Publish local usage to a directory or a GitHub gist; pull it back.
 
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -32,10 +31,7 @@ fn ingest_hermes(store: &Path, home: &Path) {
 }
 
 fn write_fake_gh(dir: &Path) -> PathBuf {
-    let script = dir.join("fake-gh");
-    fs::write(
-        &script,
-        r#"#!/usr/bin/env python3
+    let py_content = r#"#!/usr/bin/env python3
 import json, os, shutil, sys
 from pathlib import Path
 
@@ -101,13 +97,38 @@ if args[:1] == ["api"] and args[1].startswith("gists/"):
 
 sys.stderr.write("unexpected fake-gh invocation: " + " ".join(args) + "\n")
 sys.exit(2)
-"#,
-    )
-    .unwrap();
-    let mut perms = fs::metadata(&script).unwrap().permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(&script, perms).unwrap();
-    script
+"#;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let script = dir.join("fake-gh");
+        fs::write(&script, py_content).unwrap();
+        let mut perms = fs::metadata(&script).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&script, perms).unwrap();
+        script
+    }
+
+    #[cfg(windows)]
+    {
+        let py_script = dir.join("fake-gh.py");
+        fs::write(&py_script, py_content).unwrap();
+        let cmd_script = dir.join("fake-gh.cmd");
+        fs::write(
+            &cmd_script,
+            "@echo off\r\npython \"%~dp0fake-gh.py\" %*\r\n",
+        )
+        .unwrap();
+        cmd_script
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let script = dir.join("fake-gh");
+        fs::write(&script, py_content).unwrap();
+        script
+    }
 }
 
 #[test]
