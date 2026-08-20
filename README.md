@@ -1,6 +1,6 @@
 # token-usage
 
-[![CI](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml/badge.svg)](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml)
+[![build](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml/badge.svg)](https://github.com/mintychochip/token-usage/actions/workflows/ci.yml)
 
 Cross-harness token-usage store. Plugins map whatever a coding agent emits — a
 session hook, a global `/usage` snapshot, or a partial session fragment — into
