@@ -50,16 +50,6 @@ impl FileStore {
                 fs::create_dir_all(parent)?;
             }
         }
-        if !path.exists() {
-            write_atomic(
-                &path,
-                &StoreFile {
-                    version: 2,
-                    sessions: Vec::new(),
-                    harness_syncs: Vec::new(),
-                },
-            )?;
-        }
         Ok(Self {
             path,
             lock: Mutex::new(()),
@@ -160,8 +150,15 @@ impl FileStore {
     }
 
     fn load(&self) -> Result<StoreFile, StoreError> {
-        let bytes = fs::read(&self.path)?;
-        Ok(serde_json::from_slice(&bytes)?)
+        match fs::read(&self.path) {
+            Ok(bytes) => Ok(serde_json::from_slice(&bytes)?),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(StoreFile {
+                version: 2,
+                sessions: Vec::new(),
+                harness_syncs: Vec::new(),
+            }),
+            Err(err) => Err(StoreError::Io(err)),
+        }
     }
 }
 
@@ -173,14 +170,18 @@ fn unix_now() -> u64 {
 }
 
 fn write_atomic(path: &Path, file: &StoreFile) -> Result<(), StoreError> {
-    let tmp = path.with_extension("json.tmp");
-    {
-        let mut out = fs::File::create(&tmp)?;
-        let payload = serde_json::to_vec_pretty(file)?;
-        out.write_all(&payload)?;
-        out.write_all(b"\n")?;
-        out.sync_all()?;
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    if !parent.as_os_str().is_empty() {
+        fs::create_dir_all(parent)?;
     }
-    fs::rename(&tmp, path)?;
+    let mut tmp = tempfile::Builder::new()
+        .prefix(".store")
+        .suffix(".tmp")
+        .tempfile_in(parent)?;
+    let payload = serde_json::to_vec_pretty(file)?;
+    tmp.write_all(&payload)?;
+    tmp.write_all(b"\n")?;
+    tmp.as_file().sync_all()?;
+    tmp.persist(path).map_err(|e| e.error)?;
     Ok(())
 }

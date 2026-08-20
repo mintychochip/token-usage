@@ -8,8 +8,8 @@ description = "Durable store for token-usage observations"
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 token-usage-domain.workspace = true
-
 [dev-dependencies]
 tempfile.workspace = true
