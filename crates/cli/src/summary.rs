@@ -53,9 +53,11 @@ pub fn summarize_priced(
     for obs in &selected {
         let harness = obs.identity().harness();
         if let Some(row) = rows.iter_mut().find(|row| row.harness == harness) {
-            row.sessions += 1;
-            row.input_tokens += obs.counts().input_tokens();
-            row.output_tokens += obs.counts().output_tokens();
+            row.sessions = row.sessions.saturating_add(1);
+            row.input_tokens = row.input_tokens.saturating_add(obs.counts().input_tokens());
+            row.output_tokens = row
+                .output_tokens
+                .saturating_add(obs.counts().output_tokens());
             row.last_synced_at = max_ts(row.last_synced_at, obs.last_synced_at());
         } else {
             rows.push(HarnessTotals {
@@ -68,8 +70,12 @@ pub fn summarize_priced(
         }
     }
     rows.sort_by_key(|row| row.harness.as_str().to_string());
-    let input_tokens = rows.iter().map(|r| r.input_tokens).sum();
-    let output_tokens = rows.iter().map(|r| r.output_tokens).sum();
+    let input_tokens = rows
+        .iter()
+        .fold(0u64, |acc, r| acc.saturating_add(r.input_tokens));
+    let output_tokens = rows
+        .iter()
+        .fold(0u64, |acc, r| acc.saturating_add(r.output_tokens));
     let estimated_cost_usd = prices.and_then(|table| {
         let mut total = 0.0;
         let mut any = false;

@@ -164,6 +164,54 @@ fn priced_summary_uses_internal_table_not_user_rates() {
 }
 
 #[test]
+fn malformed_prices_are_rejected_not_parsed_as_nan_or_negative() {
+    let table = parse_openrouter_prices(&serde_json::json!({
+        "data": [
+            {
+                "id": "bad/nan",
+                "pricing": { "prompt": "NaN", "completion": "0.000015" }
+            },
+            {
+                "id": "bad/negative",
+                "pricing": { "prompt": "-0.000001", "completion": "0.000015" }
+            },
+            {
+                "id": "bad/inf",
+                "pricing": { "prompt": "inf", "completion": "0.000015" }
+            }
+        ]
+    }))
+    .unwrap();
+    // None of the malformed entries may enter the table: no cost for them,
+    // and the summary must serialize (no NaN) rather than error.
+    assert_eq!(
+        estimate_cost_usd(&table, Some("bad/nan"), &UsageCounts::new(100, 10)),
+        None
+    );
+    assert_eq!(
+        estimate_cost_usd(&table, Some("bad/negative"), &UsageCounts::new(100, 10)),
+        None
+    );
+    assert_eq!(
+        estimate_cost_usd(&table, Some("bad/inf"), &UsageCounts::new(100, 10)),
+        None
+    );
+    let summary = summarize_priced(
+        &[UsageObservation::new(
+            ObservationIdentity::new(Harness::Codex, SessionId::parse("s").unwrap()),
+            UsageCounts::new(100, 10),
+            ObservationSource::PluginReport,
+            SessionStoreCompleteness::Complete,
+        )
+        .with_model("bad/nan")],
+        1,
+        Some(&table),
+    );
+    assert!(summary.estimated_cost_usd.is_none());
+    let _ = serde_json::to_string(&summary).unwrap();
+}
+
+#[test]
 fn wire_round_trip_keeps_model_and_does_not_persist_user_price() {
     let obs = UsageObservation::new(
         ObservationIdentity::new(Harness::Hermes, SessionId::parse("h").unwrap()),

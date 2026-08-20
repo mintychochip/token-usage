@@ -71,6 +71,34 @@ fn summary_adds_sessions_per_harness_and_omits_session_ids() {
 }
 
 #[test]
+fn summary_saturates_at_u64_max_instead_of_wrapping_or_panicking() {
+    let dir = tempdir().unwrap();
+    let store = FileStore::open(dir.path().join("store.json")).unwrap();
+    for session in ["a", "b"] {
+        store
+            .ingest(UsageObservation::new(
+                ObservationIdentity::new(Harness::Codex, SessionId::parse(session).unwrap()),
+                UsageCounts::new(u64::MAX, u64::MAX),
+                ObservationSource::PluginReport,
+                SessionStoreCompleteness::Complete,
+            ))
+            .unwrap();
+    }
+    let summary = summarize(&store.list().unwrap(), 1);
+    assert_eq!(summary.input_tokens, u64::MAX, "must saturate, not wrap");
+    assert_eq!(summary.output_tokens, u64::MAX);
+    let codex = summary
+        .harnesses
+        .iter()
+        .find(|h| h.harness == Harness::Codex)
+        .unwrap();
+    assert_eq!(codex.input_tokens, u64::MAX);
+    assert_eq!(codex.sessions, 2);
+    // A saturating summary must still serialize (no NaN/overflow panic).
+    let _ = serde_json::to_string(&summary).unwrap();
+}
+
+#[test]
 fn summary_skips_global_approximation_when_session_reports_exist() {
     let dir = tempdir().unwrap();
     let store = FileStore::open(dir.path().join("store.json")).unwrap();

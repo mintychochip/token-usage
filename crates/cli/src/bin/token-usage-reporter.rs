@@ -202,9 +202,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string_pretty(&sessions)?);
         }
         Command::List => {
-            if store.list_harness_syncs()?.is_empty() {
-                sync_all_needed(&store, &roots, unix_now())?;
-            }
+            sync_all_needed(&store, &roots, unix_now())?;
             let sessions: Vec<_> = store
                 .list()?
                 .iter()
@@ -257,7 +255,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             public,
             url,
         } => {
-            let bundle = bundle_from_store(&store, unix_now())?;
+            let bundle = bundle_from_store(&store, &store_path, unix_now())?;
             if let Some(dir) = dir {
                 write_bundle(&dir, &bundle, !public)?;
                 std::fs::write(dir.join("usage-card.js"), USAGE_CARD_JS)?;
@@ -272,13 +270,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 None | Some("") => cfg.gist_id.clone(),
                 Some(id) => Some(id.to_string()),
             };
-            let work = std::env::temp_dir().join(format!(
-                "token-usage-publish-{}-{}",
-                std::process::id(),
-                unix_now()
-            ));
-            let gist = push_gist(&bundle, remembered.as_deref(), public, &work)?;
-            let _ = std::fs::remove_dir_all(&work);
+            let gist = push_gist(&bundle, remembered.as_deref(), public)?;
             let owner = gist.owner.or(cfg.gist_owner.clone()).or_else(gh_login);
             cfg.gist_id = Some(gist.id.clone());
             cfg.gist_owner = owner.clone();

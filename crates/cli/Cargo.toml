@@ -23,6 +23,7 @@ clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tempfile.workspace = true
 tokio.workspace = true
 token-usage-adapters.workspace = true
 token-usage-domain.workspace = true

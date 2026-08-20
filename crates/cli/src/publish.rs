@@ -7,7 +7,8 @@ use std::process::Command;
 use serde::{Deserialize, Serialize};
 use token_usage_store::FileStore;
 
-use crate::summary::{shields_badge, summarize};
+use crate::pricing::load_price_table;
+use crate::summary::{shields_badge, summarize_priced};
 use crate::wire::WireObservation;
 
 /// Files written for GitHub (gist or a repo directory).
@@ -35,9 +36,14 @@ pub struct GistRef {
 }
 
 /// Build the files a gist or usage repo should contain.
-pub fn bundle_from_store(store: &FileStore, generated_at: u64) -> Result<PublishBundle, String> {
+pub fn bundle_from_store(
+    store: &FileStore,
+    store_path: &Path,
+    generated_at: u64,
+) -> Result<PublishBundle, String> {
     let listed = store.list().map_err(|e| e.to_string())?;
-    let summary = summarize(&listed, generated_at);
+    let prices = load_price_table(store_path);
+    let summary = summarize_priced(&listed, generated_at, prices.as_ref());
     let mut sessions_jsonl = String::new();
     for obs in &listed {
         sessions_jsonl.push_str(
@@ -109,17 +115,22 @@ pub fn push_gist(
     bundle: &PublishBundle,
     id: Option<&str>,
     public: bool,
-    work: &Path,
 ) -> Result<GistRef, String> {
-    write_bundle(work, bundle, !public)?;
+    // Private staging: a unique mode-0700 temp dir so other local users cannot
+    // read `usage.jsonl` (session ids) or swap files between write and `gh`.
+    let work = tempfile::Builder::new()
+        .prefix("token-usage-publish-")
+        .tempdir()
+        .map_err(|e| e.to_string())?;
+    write_bundle(work.path(), bundle, !public)?;
     let gh = gh_bin();
     if let Some(id) = id {
         let mut cmd = Command::new(&gh);
         cmd.arg("gist").arg("edit").arg(id);
-        cmd.arg(work.join("usage-summary.json"));
-        cmd.arg(work.join("usage-badge.json"));
+        cmd.arg(work.path().join("usage-summary.json"));
+        cmd.arg(work.path().join("usage-badge.json"));
         if !public {
-            cmd.arg(work.join("usage.jsonl"));
+            cmd.arg(work.path().join("usage.jsonl"));
         }
         run_gh(&mut cmd)?;
         return Ok(GistRef {
@@ -132,10 +143,10 @@ pub fn push_gist(
     if public {
         cmd.arg("--public");
     }
-    cmd.arg(work.join("usage-summary.json"));
-    cmd.arg(work.join("usage-badge.json"));
+    cmd.arg(work.path().join("usage-summary.json"));
+    cmd.arg(work.path().join("usage-badge.json"));
     if !public {
-        cmd.arg(work.join("usage.jsonl"));
+        cmd.arg(work.path().join("usage.jsonl"));
     }
     let out = run_gh(&mut cmd)?;
     parse_gist_ref(&out).ok_or_else(|| format!("could not parse gist id from: {out}"))

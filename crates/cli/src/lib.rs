@@ -232,9 +232,7 @@ fn maybe_first_sync_all(state: &ApiState) -> Result<(), ApiError> {
     let Some(store) = state.store.as_ref() else {
         return Ok(());
     };
-    if store.list_harness_syncs()?.is_empty() {
-        sync_all_needed(store, &state.roots, unix_now())?;
-    }
+    sync_all_needed(store, &state.roots, unix_now())?;
     Ok(())
 }
 
