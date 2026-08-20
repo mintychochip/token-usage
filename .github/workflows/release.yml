@@ -21,9 +21,11 @@ jobs:
         id: version
         shell: bash
         run: |
-          version="$(date -u +'%Y.%-m.%-d').${GITHUB_RUN_NUMBER}"
+          date_part="$(date -u +'%Y.%-m.%-d')"
+          version="${date_part}+${GITHUB_RUN_NUMBER}"
+          tag="v${date_part}.${GITHUB_RUN_NUMBER}"
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
-          echo "tag=v${version}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
 
   build-matrix:
     name: Build ${{ matrix.target }}
