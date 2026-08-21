@@ -2,10 +2,13 @@
 
 mod components;
 mod pricing;
+pub mod github_pages;
+pub mod identity;
+pub mod publish_config;
+pub mod widgets_publish;
 mod publish;
 mod summary;
 mod wire;
-
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -27,7 +30,7 @@ pub use components::{
 };
 pub use pricing::{estimate_cost_usd, load_price_table, parse_openrouter_prices, PriceTable};
 pub use publish::{
-    bundle_from_store, gh_login, load_github_config, pull_dir, pull_gist, push_gist,
+    bundle_from_store, bundle_from_summary, gh_login, load_github_config, pull_dir, pull_gist, push_gist,
     save_github_config, write_bundle, GistRef, GithubConfig, PublishBundle,
 };
 pub use summary::{
@@ -238,7 +241,7 @@ fn maybe_first_sync_all(state: &ApiState) -> Result<(), ApiError> {
     Ok(())
 }
 
-fn unix_now() -> u64 {
+pub(crate) fn unix_now() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())

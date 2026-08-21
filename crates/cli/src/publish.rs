@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};
+use toktally_domain::UsageObservation;
 use toktally_store::FileStore;
 
-use crate::summary::{shields_badge, summarize};
+use crate::summary::{shields_badge, summarize, UsageSummary};
 use crate::wire::WireObservation;
 
 /// Files written for GitHub (gist or a repo directory).
@@ -34,12 +35,13 @@ pub struct GistRef {
     pub owner: Option<String>,
 }
 
-/// Build the files a gist or usage repo should contain.
-pub fn bundle_from_store(store: &FileStore, generated_at: u64) -> Result<PublishBundle, String> {
-    let listed = store.list().map_err(|e| e.to_string())?;
-    let summary = summarize(&listed, generated_at);
+/// Build a `PublishBundle` from an already-computed summary and observation list.
+pub fn bundle_from_summary(
+    summary: &UsageSummary,
+    observations: &[UsageObservation],
+) -> Result<PublishBundle, String> {
     let mut sessions_jsonl = String::new();
-    for obs in &listed {
+    for obs in observations {
         sessions_jsonl.push_str(
             &serde_json::to_string(&WireObservation::from_observation(obs))
                 .map_err(|e| e.to_string())?,
@@ -49,14 +51,21 @@ pub fn bundle_from_store(store: &FileStore, generated_at: u64) -> Result<Publish
     Ok(PublishBundle {
         summary_json: format!(
             "{}\n",
-            serde_json::to_string_pretty(&summary).map_err(|e| e.to_string())?
+            serde_json::to_string_pretty(summary).map_err(|e| e.to_string())?
         ),
         shields_json: format!(
             "{}\n",
-            serde_json::to_string_pretty(&shields_badge(&summary)).map_err(|e| e.to_string())?
+            serde_json::to_string_pretty(&shields_badge(summary)).map_err(|e| e.to_string())?
         ),
         sessions_jsonl,
     })
+}
+
+/// Build the files a gist or usage repo should contain.
+pub fn bundle_from_store(store: &FileStore, generated_at: u64) -> Result<PublishBundle, String> {
+    let listed = store.list().map_err(|e| e.to_string())?;
+    let summary = summarize(&listed, generated_at);
+    bundle_from_summary(&summary, &listed)
 }
 
 /// Write a bundle into `dir`. Session JSONL is omitted for a public publish.
@@ -188,14 +197,14 @@ pub fn save_github_config(store_path: &Path, config: &GithubConfig) -> Result<()
     .map_err(|e| e.to_string())
 }
 
-fn gh_bin() -> PathBuf {
+pub(crate) fn gh_bin() -> PathBuf {
     std::env::var_os("TOKTALLY_GH")
         .or_else(|| std::env::var_os("TOKEN_USAGE_GH"))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("gh"))
 }
 
-fn run_gh(cmd: &mut Command) -> Result<String, String> {
+pub(crate) fn run_gh(cmd: &mut Command) -> Result<String, String> {
     let out = cmd.output().map_err(|e| format!("failed to run gh: {e}"))?;
     if !out.status.success() {
         return Err(format!(

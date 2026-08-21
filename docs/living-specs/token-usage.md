@@ -1,7 +1,7 @@
 # Token Usage — Living Spec
 
 > Status: active
-> Last updated: 2026-08-19
+> Last updated: 2026-08-21
 > Owners: toktally
 
 ## Intent
@@ -26,15 +26,11 @@ queryable together.
   and session-store completeness
 - Durable local store with sync-on-same-identity
 - Publish/pull to a user-owned GitHub gist or a directory they commit
+- Central widget service (`widgets.mintychochip.dev`) as the default publish target
+- Signed ed25519 identity derived from a local keypair; UUID derived from the public key
+- Multi-target `publish` controlled by `~/.toktally/publish-config.json`
+- GitHub Pages opt-out via `--github-pages` (creates/updates a repo with Pages enabled)
 - Copy-paste GitHub badge and website embed that read published summary/badge JSON
-- Optional model id on an observation when the host sent one
-- Internal USD cost estimate from a public model-price API (not user-supplied rates)
-- Thin Rust HTTP API and a reporter CLI that plugins exec
-- Adapters for representative harness payloads
-- Host-native wrappers (hooks/manifests/scripts) that invoke the reporter
-- First-use scan of existing harness session stores (all discoverable sessions, not only the active one)
-- Last-synced timestamps per observation and per harness
-
 ### Out of scope / non-goals
 
 - Marketplace publishing or live install into a running harness
@@ -119,7 +115,10 @@ queryable together.
 
 ## Next
 - [x] Stateless hosted adapt API (`TOKTALLY_STATELESS`); storage stays client-owned
-- [x] JSONL export/import as the user-managed observation format
+- [x] Central widget service with signed `POST /api/v1/publish` and public summary/card/profile routes
+- [x] Local ed25519 identity stored in `~/.toktally/keys/`
+- [x] Multi-target `publish` with shared summary; failures are collected, not skipped
+- [x] GitHub Pages opt-out via `--github-pages` using `gh` + `git`
 - [x] Summary/shields export so usage can be gist’d or charted without a hosted DB
 
 ## Future
@@ -148,8 +147,9 @@ queryable together.
 | 2026-08-19 | ExtraCounts.tokens_before/after copy Grok `totalTokensBeforeCompaction` / `contextTokensUsed` | Do not invent counts; only map fields the host already sent |
 | 2026-08-19 | Persist optional `model`; estimate USD from OpenRouter (not user-submitted rates) | Cost is internal; missing model/price means no cost |
 | 2026-08-19 | Price lookup strips context-window suffixes and matches hyphen tokens | Hosts send `opus-5-1m`; the catalog has `opus-5`. Exact variant still wins |
-| 2026-08-19 | `publish` emits a shields README badge and a website card over published JSON | People paste components; no hosted widget backend |
-| 2026-08-19 | Summary omits `__harness_global__` when session plugin reports exist for that harness | Global `/usage` is the same totals, not extra usage |
+| 2026-08-21 | Central widget service is the default publish target; GitHub Pages is opt-out | One command publishes everywhere; users who dislike the central service can switch to a repo they own |
+| 2026-08-21 | `publish` computes one summary and attempts every enabled target, collecting errors | A failure on one backend must not roll back the others or hide later successes |
+| 2026-08-21 | Machine-local ed25519 identity in `~/.toktally/keys/`; UUID from blake3(public_key) | No accounts, passwords, or user setup; public key never leaves the machine |
 
 ## Open questions
 
