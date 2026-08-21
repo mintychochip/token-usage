@@ -330,16 +330,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
             if do_gh_pages {
                 if cfg.github_pages.repo.is_empty() {
-                    return Err("--github-pages requested but publish-config.github_pages.repo is empty".into());
-                }
-                match github_pages::publish(
-                    &cfg.github_pages.repo,
-                    &bundle,
-                    USAGE_CARD_JS,
-                    generated_at,
-                ) {
-                    Ok(page_url) => println!("{page_url}"),
-                    Err(e) => errors.push(format!("github-pages: {e}")),
+                    errors.push(
+                        "github-pages: --github-pages requested but publish-config.github_pages.repo is empty".into(),
+                    );
+                } else {
+                    match github_pages::publish(
+                        &cfg.github_pages.repo,
+                        &bundle,
+                        USAGE_CARD_JS,
+                        generated_at,
+                    ) {
+                        Ok(page_url) => println!("{page_url}"),
+                        Err(e) => errors.push(format!("github-pages: {e}")),
+                    }
                 }
             }
 
