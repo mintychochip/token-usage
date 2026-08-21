@@ -6,8 +6,8 @@ members = [
     "crates/adapters",
     "crates/sync",
     "crates/cli",
+    "crates/widgets-api",
 ]
-
 [workspace.package]
 edition = "2021"
 license = "MIT"
