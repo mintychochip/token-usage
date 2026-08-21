@@ -226,10 +226,17 @@ fn fetch_prices_json(url: &str) -> Option<String> {
 
 fn json_f64(value: Option<&Value>) -> Option<f64> {
     let value = value?;
-    value
+    let parsed = value
         .as_f64()
         .or_else(|| value.as_i64().map(|n| n as f64))
-        .or_else(|| value.as_str().and_then(|s| s.parse().ok()))
+        .or_else(|| value.as_str().and_then(|s| s.parse().ok()))?;
+    // Malformed remote price data must not produce NaN/inf (breaks JSON
+    // serialization and export) or a negative cost estimate.
+    if parsed.is_finite() && parsed >= 0.0 {
+        Some(parsed)
+    } else {
+        None
+    }
 }
 
 fn normalize(model: &str) -> String {
