@@ -2,6 +2,7 @@
 
 mod components;
 mod pricing;
+pub mod identity;
 mod publish;
 mod summary;
 mod wire;
