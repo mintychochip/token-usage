@@ -19,10 +19,8 @@ fn ingest_fixture(store: &Path, home: &Path) {
 }
 
 fn write_fake_gh(dir: &Path, state: &Path) -> PathBuf {
-    let script = dir.join("fake-gh");
     let py = format!(
-        r#"#!/usr/bin/env python3
-import os, shutil, sys
+        r#"import os, shutil, sys
 from pathlib import Path
 
 state = Path("{state}")
@@ -70,15 +68,33 @@ sys.exit(2)
 "#,
         state = state.display()
     );
-    fs::write(&script, py).unwrap();
+
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+        let script = dir.join("fake-gh");
+        fs::write(&script, format!("#!/usr/bin/env python3\n{py}")).unwrap();
         let mut perms = fs::metadata(&script).unwrap().permissions();
         perms.set_mode(0o755);
         fs::set_permissions(&script, perms).unwrap();
+        script
     }
-    script
+
+    #[cfg(windows)]
+    {
+        let py_script = dir.join("fake-gh.py");
+        fs::write(&py_script, py).unwrap();
+        let cmd_script = dir.join("fake-gh.cmd");
+        fs::write(&cmd_script, "@echo off\r\npython \"%~dp0fake-gh.py\" %*\r\n").unwrap();
+        cmd_script
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let script = dir.join("fake-gh");
+        fs::write(&script, py).unwrap();
+        script
+    }
 }
 
 fn write_fake_git(dir: &Path) -> PathBuf {
