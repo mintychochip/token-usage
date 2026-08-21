@@ -37,7 +37,7 @@ pub use publish::{
 };
 pub use summary::{
     shields_badge, summarize, summarize_priced, DayTotals, HarnessTotals, ModelTotals,
-    ShieldsBadge, UsageSummary,
+    ProviderDayTotals, ShieldsBadge, UsageSummary,
 };
 pub use wire::{
     WireHarnessSync, WireObservation, WireSessionList, WireSyncRequest, WireSyncStatus,
