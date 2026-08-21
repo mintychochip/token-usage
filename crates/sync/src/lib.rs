@@ -382,6 +382,8 @@ fn aggregate_jsonl(path: &Path) -> Result<Option<Value>, SyncError> {
     let mut input = 0u64;
     let mut output = 0u64;
     let mut cache_read = 0u64;
+    let mut cache_write = 0u64;
+    let mut reasoning = 0u64;
     let mut saw_usage = false;
     let mut model: Option<String> = None;
     let mut recorded_at: Option<u64> = None;
@@ -447,6 +449,19 @@ fn aggregate_jsonl(path: &Path) -> Result<Option<Value>, SyncError> {
                     "cached_input_tokens",
                 ],
             );
+            cache_write += usage_u64(
+                usage,
+                &[
+                    "cache_write",
+                    "cache_write_tokens",
+                    "cacheCreationTokens",
+                    "cacheWriteTokens",
+                ],
+            );
+            reasoning += usage_u64(
+                usage,
+                &["reasoning", "reasoning_tokens", "reasoningTokens"],
+            );
         }
     }
     if !saw_usage {
@@ -458,13 +473,20 @@ fn aggregate_jsonl(path: &Path) -> Result<Option<Value>, SyncError> {
             .unwrap_or("unknown")
             .to_string()
     });
+    let mut stats = json!({
+        "inputTokens": input,
+        "outputTokens": output,
+        "cacheReadTokens": cache_read
+    });
+    if cache_write != 0 {
+        stats["cacheWriteTokens"] = json!(cache_write);
+    }
+    if reasoning != 0 {
+        stats["reasoningTokens"] = json!(reasoning);
+    }
     let mut payload = json!({
         "sessionId": session_id,
-        "stats": {
-            "inputTokens": input,
-            "outputTokens": output,
-            "cacheReadTokens": cache_read
-        }
+        "stats": stats
     });
     if let Some(model) = model {
         payload["model"] = json!(model);
@@ -545,10 +567,7 @@ fn walk_files_inner(
     if depth > 12 {
         return Ok(());
     }
-    let entries = match fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return Ok(()),
-    };
+    let entries = fs::read_dir(dir)?;
     for entry in entries {
         let entry = entry?;
         let path = entry.path();

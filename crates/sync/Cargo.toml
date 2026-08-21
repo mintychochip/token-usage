@@ -15,3 +15,4 @@ toktally-store.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+toktally-adapters.workspace = true

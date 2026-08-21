@@ -1,0 +1,12 @@
+{
+  "session_id": "hermes-sess-1",
+  "task_id": "task-1",
+  "hook": "post_api_request",
+  "model": "anthropic/claude-sonnet-4.6",
+  "platform": "cli",
+  "usage": {
+    "input_tokens": 18000,
+    "output_tokens": 2200,
+    "cache_read_tokens": 5000
+  }
+}

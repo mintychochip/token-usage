@@ -1,6 +1,11 @@
 //! Drive discovery and first-use sync against fixture harness stores.
 
 use std::path::PathBuf;
+use std::fs;
+
+use toktally_adapters::adapt;
+use toktally_sync::SyncError;
+
 
 use tempfile::tempdir;
 use toktally_domain::{Harness, ObservationIdentity, SessionId};
@@ -33,6 +38,69 @@ fn grok_discovery_finds_every_session_not_just_one() {
         .collect();
     assert!(ids.contains(&"sess-alpha".to_string()));
     assert!(ids.contains(&"sess-beta".to_string()));
+}
+
+#[test]
+fn every_harness_discovers_at_least_one_fixture_payload() {
+    for harness in Harness::all() {
+        let payloads = discover(harness, &roots()).unwrap();
+        assert!(
+            !payloads.is_empty(),
+            "{harness:?} should have at least one discoverable fixture payload"
+        );
+    }
+}
+
+#[test]
+fn aggregate_jsonl_preserves_cache_write_and_reasoning_extras() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join(".omp/agent/sessions/session.jsonl");
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        &path,
+        concat!(
+            "{\"type\":\"session\",\"id\":\"extras\",\"timestamp\":\"2026-01-01T00:00:00Z\"}\n",
+            "{\"usage\":{\"input\":1,\"output\":2,\"cache_write\":3,\"reasoning\":4}}\n"
+        ),
+    )
+    .unwrap();
+    let payloads = discover(
+        Harness::OhMyPi,
+        &SyncRoots {
+            home: dir.path().to_path_buf(),
+        },
+    )
+    .unwrap();
+    assert_eq!(payloads.len(), 1);
+    let observation = adapt(Harness::OhMyPi, &payloads[0]).unwrap();
+    assert_eq!(observation.counts().extras().cache_write, Some(3));
+    assert_eq!(observation.counts().extras().reasoning, Some(4));
+}
+
+#[test]
+fn unreadable_session_directory_surfaces_io_error() {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempdir().unwrap();
+        let unreadable = dir.path().join(".jcode/unreadable");
+        fs::create_dir_all(&unreadable).unwrap();
+        let mut permissions = fs::metadata(&unreadable).unwrap().permissions();
+        permissions.set_mode(0o000);
+        fs::set_permissions(&unreadable, permissions).unwrap();
+        let probe = fs::read_dir(&unreadable);
+        if probe.is_ok() {
+            return;
+        }
+        let result = discover(
+            Harness::Jcode,
+            &SyncRoots {
+                home: dir.path().to_path_buf(),
+            },
+        );
+        assert!(matches!(result, Err(SyncError::Io(_))), "{result:?}");
+    }
 }
 
 #[test]
