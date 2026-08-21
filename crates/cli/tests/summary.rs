@@ -174,3 +174,45 @@ fn global_approximation_still_yields_to_complete_plugin_evidence() {
         "complete session store supersedes the approximation"
     );
 }
+
+fn day_start_utc(unix_seconds: u64) -> u64 {
+    let days = unix_seconds / 86400;
+    days * 86400
+}
+
+#[test]
+fn summary_days_use_last_synced_at_when_recorded_at_missing() {
+    let at = 1_700_000_100;
+    let rows = vec![obs(
+        Harness::Grok,
+        "sync-only",
+        42,
+        3,
+        ObservationSource::PluginReport,
+        SessionStoreCompleteness::Unknown,
+    )
+    .with_last_synced_at(at)];
+    let summary = summarize(&rows, 1);
+    let day = summary
+        .days
+        .iter()
+        .find(|d| d.day == day_start_utc(at))
+        .expect("sync-only observation should land in daily totals");
+    assert_eq!(day.input_tokens, 42);
+    assert_eq!(day.output_tokens, 3);
+}
+
+#[test]
+fn summary_days_skip_observations_without_any_timestamp() {
+    let rows = vec![obs(
+        Harness::Grok,
+        "no-time",
+        99,
+        1,
+        ObservationSource::PluginReport,
+        SessionStoreCompleteness::Unknown,
+    )];
+    let summary = summarize(&rows, 1);
+    assert!(summary.days.is_empty());
+    assert_eq!(summary.input_tokens, 99);
+}
