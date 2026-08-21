@@ -6,7 +6,7 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::Json,
+    response::{Html, Json},
     routing::{get, post},
     Router,
 };
@@ -14,6 +14,8 @@ use base64::Engine;
 use parking_lot::Mutex;
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
+
+const CARD_JS: &str = token_usage_cli::USAGE_CARD_JS;
 
 #[derive(Default, Clone)]
 struct AppState {
@@ -62,13 +64,26 @@ async fn get_summary(
         .map(Json)
         .ok_or(StatusCode::NOT_FOUND)
 }
+async fn get_card_js() -> ([(axum::http::header::HeaderName, &'static str); 1], &'static str) {
+    ([(axum::http::header::CONTENT_TYPE, "application/javascript")], CARD_JS)
+}
+
+async fn get_profile(Path(uuid): Path<String>) -> Html<String> {
+    let summary_url = format!("/u/{uuid}/usage-summary.json");
+    let card = token_usage_cli::website_embed_html(&summary_url);
+    Html(format!(
+        "<!doctype html><html><head><meta charset=\"utf-8\"/><title>token usage</title></head><body>{card}</body></html>"
+    ))
+}
 
 #[tokio::main]
 async fn main() {
     let state = AppState::default();
     let app = Router::new()
         .route("/api/v1/publish", post(publish))
+        .route("/token-usage-card.js", get(get_card_js))
         .route("/u/{uuid}/usage-summary.json", get(get_summary))
+        .route("/u/{uuid}", get(get_profile))
         .with_state(state);
 
     let bind = std::env::var("WIDGETS_API_BIND").unwrap_or_else(|_| "0.0.0.0:9474".into());
