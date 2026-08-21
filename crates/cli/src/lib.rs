@@ -1,14 +1,14 @@
 //! Thin HTTP layer over the durable usage store.
 
+mod chart;
 mod components;
-mod pricing;
 pub mod github_pages;
 pub mod identity;
-pub mod publish_config;
-pub mod widgets_publish;
-mod chart;
+mod pricing;
 mod publish;
+pub mod publish_config;
 mod summary;
+pub mod widgets_publish;
 mod wire;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -27,13 +27,13 @@ use toktally_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 
 pub use chart::chart_svg;
 pub use components::{
-    gist_raw_base, github_badge_markdown, join_published_url, publish_snippets,
-    render_summary_card, website_embed_html, USAGE_CARD_JS,
+    gist_raw_base, github_badge_markdown, github_chart_markdown, join_published_url,
+    publish_snippets, render_summary_card, website_embed_html, USAGE_CARD_JS,
 };
 pub use pricing::{estimate_cost_usd, load_price_table, parse_openrouter_prices, PriceTable};
 pub use publish::{
-    bundle_from_store, bundle_from_summary, gh_login, load_github_config, pull_dir, pull_gist, push_gist,
-    save_github_config, write_bundle, GistRef, GithubConfig, PublishBundle,
+    bundle_from_store, bundle_from_summary, gh_login, load_github_config, pull_dir, pull_gist,
+    push_gist, save_github_config, write_bundle, GistRef, GithubConfig, PublishBundle,
 };
 pub use summary::{
     shields_badge, summarize, summarize_priced, DayTotals, HarnessTotals, ModelTotals,
