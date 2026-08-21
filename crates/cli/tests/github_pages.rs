@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn ingest_fixture(store: &Path, home: &Path) {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../adapters/fixtures/oh-my-pi-session.json");
+    let fixture =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../adapters/fixtures/oh-my-pi-session.json");
     fs::create_dir_all(home).unwrap();
     let out = Command::new(env!("CARGO_BIN_EXE_toktally"))
         .env("TOKEN_USAGE_STORE", store)
@@ -15,7 +15,11 @@ fn ingest_fixture(store: &Path, home: &Path) {
         .arg(&fixture)
         .output()
         .unwrap();
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 fn write_fake_gh(dir: &Path, state: &Path) -> PathBuf {
@@ -139,6 +143,7 @@ sys.exit(2)
     script
 }
 
+#[cfg(unix)]
 #[test]
 fn github_pages_publishes_bundle_on_first_run() {
     let dir = tempfile::tempdir().unwrap();
@@ -177,7 +182,11 @@ fn github_pages_publishes_bundle_on_first_run() {
         .output()
         .unwrap();
 
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(

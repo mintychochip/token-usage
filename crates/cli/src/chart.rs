@@ -61,7 +61,7 @@ pub fn chart_svg(summary: &UsageSummary) -> String {
             (name.as_str(), total)
         })
         .collect();
-    totals.sort_by(|a, b| b.1.cmp(&a.1));
+    totals.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     let mut bars = String::new();
     let mut labels = String::new();
@@ -111,7 +111,9 @@ pub fn chart_svg(summary: &UsageSummary) -> String {
         let color = palette_color(name);
         legend.push_str(&format!(
             "<rect x=\"{}\" y=\"{}\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{}\"/>",
-            lx, ly - 9, color
+            lx,
+            ly - 9,
+            color
         ));
         legend.push_str(&format!(
             "<text x=\"{}\" y=\"{}\" font-size=\"11\" fill=\"{}\" font-family=\"{}\">{}</text>",

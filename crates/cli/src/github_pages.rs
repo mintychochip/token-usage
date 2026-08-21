@@ -17,7 +17,9 @@ fn split_repo(repo: &str) -> Result<(&str, &str), String> {
 }
 
 fn run_git(cmd: &mut Command) -> Result<String, String> {
-    let out = cmd.output().map_err(|e| format!("failed to run git: {e}"))?;
+    let out = cmd
+        .output()
+        .map_err(|e| format!("failed to run git: {e}"))?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);
         return Err(format!("git failed: {stderr}"));
@@ -81,7 +83,9 @@ fn write_bundle_files(dir: &Path, bundle: &PublishBundle, card_js: &str) -> Resu
 fn gh_repo_exists(repo: &str) -> Result<bool, String> {
     let mut cmd = Command::new(gh_bin());
     cmd.args(["repo", "view", repo]);
-    let out = cmd.output().map_err(|e| format!("failed to run gh repo view: {e}"))?;
+    let out = cmd
+        .output()
+        .map_err(|e| format!("failed to run gh repo view: {e}"))?;
     if out.status.success() {
         return Ok(true);
     }
@@ -89,7 +93,10 @@ fn gh_repo_exists(repo: &str) -> Result<bool, String> {
     if stderr.contains("not found") || stderr.contains("could not resolve") {
         Ok(false)
     } else {
-        Err(format!("gh repo view failed: {}", String::from_utf8_lossy(&out.stderr)))
+        Err(format!(
+            "gh repo view failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ))
     }
 }
 

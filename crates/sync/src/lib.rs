@@ -156,6 +156,7 @@ pub fn enrich_harness_metadata(
 }
 
 /// Extract `(session_id, model, recorded_at)` from the leading lines of a JSONL file.
+#[allow(clippy::type_complexity)]
 fn read_metadata(path: &Path) -> Result<Option<(String, Option<String>, Option<u64>)>, SyncError> {
     use std::io::BufRead;
     let file = fs::File::open(path)?;

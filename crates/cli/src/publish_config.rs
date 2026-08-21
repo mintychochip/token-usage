@@ -56,8 +56,11 @@ pub fn load_or_create(path: &Path) -> Result<PublishConfig, String> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
-        std::fs::write(path, serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
+        std::fs::write(
+            path,
+            serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?;
         return Ok(cfg);
     }
     let raw = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
@@ -66,6 +69,9 @@ pub fn load_or_create(path: &Path) -> Result<PublishConfig, String> {
 
 /// Persist an updated config.
 pub fn save(path: &Path, cfg: &PublishConfig) -> Result<(), String> {
-    std::fs::write(path, serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    std::fs::write(
+        path,
+        serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())
 }

@@ -64,8 +64,14 @@ async fn get_summary(
         .map(Json)
         .ok_or(StatusCode::NOT_FOUND)
 }
-async fn get_card_js() -> ([(axum::http::header::HeaderName, &'static str); 1], &'static str) {
-    ([(axum::http::header::CONTENT_TYPE, "application/javascript")], CARD_JS)
+async fn get_card_js() -> (
+    [(axum::http::header::HeaderName, &'static str); 1],
+    &'static str,
+) {
+    (
+        [(axum::http::header::CONTENT_TYPE, "application/javascript")],
+        CARD_JS,
+    )
 }
 
 async fn get_profile(Path(uuid): Path<String>) -> Html<String> {
