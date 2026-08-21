@@ -43,8 +43,9 @@
     if (!doc || !doc.querySelectorAll) {
       return;
     }
-    var nodes = doc.querySelectorAll(".toktally-card[data-summary-url], .toktally-card[data-summary-url]");
+    var nodes = doc.querySelectorAll(".toktally-card[data-summary-url]");
     for (var i = 0; i < nodes.length; i++) {
+      mount(nodes[i]);
     }
   }
 
