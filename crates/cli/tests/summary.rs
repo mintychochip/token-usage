@@ -104,3 +104,73 @@ fn summary_skips_global_approximation_when_session_reports_exist() {
     assert_eq!(summary.output_tokens, 2200);
     assert_eq!(summary.harnesses[0].sessions, 1);
 }
+
+fn obs(
+    harness: Harness,
+    session: &str,
+    input: u64,
+    output: u64,
+    source: ObservationSource,
+    completeness: SessionStoreCompleteness,
+) -> UsageObservation {
+    UsageObservation::new(
+        ObservationIdentity::new(harness, SessionId::parse(session).unwrap()),
+        UsageCounts::new(input, output),
+        source,
+        completeness,
+    )
+}
+
+#[test]
+fn global_approximation_survives_partial_plugin_evidence() {
+    let rows = vec![
+        obs(
+            Harness::Grok,
+            "__grok_global__",
+            1000,
+            500,
+            ObservationSource::HarnessGlobalApproximation,
+            SessionStoreCompleteness::Partial,
+        ),
+        obs(
+            Harness::Grok,
+            "sess-a",
+            10,
+            5,
+            ObservationSource::PluginReport,
+            SessionStoreCompleteness::Partial,
+        ),
+    ];
+    let summary = summarize(&rows, 1);
+    assert_eq!(
+        summary.input_tokens, 1010,
+        "partial session evidence must not discard global totals"
+    );
+}
+
+#[test]
+fn global_approximation_still_yields_to_complete_plugin_evidence() {
+    let rows = vec![
+        obs(
+            Harness::Grok,
+            "__grok_global__",
+            1000,
+            500,
+            ObservationSource::HarnessGlobalApproximation,
+            SessionStoreCompleteness::Partial,
+        ),
+        obs(
+            Harness::Grok,
+            "sess-b",
+            10,
+            5,
+            ObservationSource::PluginReport,
+            SessionStoreCompleteness::Complete,
+        ),
+    ];
+    let summary = summarize(&rows, 1);
+    assert_eq!(
+        summary.input_tokens, 10,
+        "complete session store supersedes the approximation"
+    );
+}

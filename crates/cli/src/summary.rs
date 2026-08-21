@@ -1,7 +1,7 @@
 //! Chart- and gist-friendly rollups of stored observations.
 
 use serde::{Deserialize, Serialize};
-use toktally_domain::{Harness, ObservationSource, UsageObservation};
+use toktally_domain::{Harness, ObservationSource, SessionStoreCompleteness, UsageObservation};
 
 use crate::pricing::{estimate_cost_usd, PriceTable};
 
@@ -223,12 +223,17 @@ fn day_start_utc(unix_seconds: u64) -> u64 {
 }
 
 fn observations_for_summary(observations: &[UsageObservation]) -> Vec<&UsageObservation> {
-    let mut has_plugin = Vec::new();
+    // Only a *complete* per-session view supersedes the host-wide
+    // approximation; partial session evidence must not silently shrink
+    // reported totals.
+    let mut has_complete = Vec::new();
     for obs in observations {
-        if obs.source() == ObservationSource::PluginReport {
+        if obs.source() == ObservationSource::PluginReport
+            && obs.completeness() == SessionStoreCompleteness::Complete
+        {
             let harness = obs.identity().harness();
-            if !has_plugin.contains(&harness) {
-                has_plugin.push(harness);
+            if !has_complete.contains(&harness) {
+                has_complete.push(harness);
             }
         }
     }
@@ -236,7 +241,7 @@ fn observations_for_summary(observations: &[UsageObservation]) -> Vec<&UsageObse
         .iter()
         .filter(|obs| {
             obs.source() != ObservationSource::HarnessGlobalApproximation
-                || !has_plugin.contains(&obs.identity().harness())
+                || !has_complete.contains(&obs.identity().harness())
         })
         .collect()
 }
