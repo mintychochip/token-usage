@@ -7,8 +7,9 @@ use base64::Engine;
 use clap::{Parser, Subcommand};
 use token_usage_adapters::adapt;
 use token_usage_cli::{
-    bundle_from_store, gh_login, gist_raw_base, load_github_config, publish_snippets, pull_dir,
-    pull_gist, push_gist, save_github_config, shields_badge, summarize_priced, write_bundle,
+    bundle_from_summary, gh_login, gist_raw_base, github_pages, load_github_config,
+    load_price_table, publish_config, publish_snippets, pull_dir, pull_gist, push_gist,
+    save_github_config, shields_badge, summarize_priced, widgets_publish, write_bundle,
     WireHarnessSync, WireObservation, WireSyncStatus, USAGE_CARD_JS,
 };
 use token_usage_domain::{Harness, ObservationIdentity, SessionId};
@@ -77,10 +78,10 @@ enum Command {
         #[arg(long)]
         interval: Option<u64>,
     },
-    /// Push the local store to a directory or a GitHub gist (`gh`), or to the widget service.
+    /// Push the local store to a directory, a GitHub gist (`gh`), the widget service, or GitHub Pages.
     Publish {
-        /// Directory to write (commit this, or host it on GitHub Pages).
-        #[arg(long, conflicts_with = "gist", conflicts_with = "widgets")]
+        /// Directory to write.
+        #[arg(long)]
         dir: Option<PathBuf>,
         /// Gist id to update. Pass `--gist` alone to create or reuse `github.json`.
         #[arg(long, num_args = 0..=1, default_missing_value = "")]
@@ -91,9 +92,18 @@ enum Command {
         /// Public base URL of the published files (GitHub Pages, raw gist, widget service, …).
         #[arg(long)]
         url: Option<String>,
-        /// Publish the summary to the widgets.mintychochip.dev service.
-        #[arg(long, conflicts_with = "dir", conflicts_with = "gist")]
+        /// Publish the summary to the configured widget service.
+        #[arg(long)]
         widgets: bool,
+        /// Skip the widget service for this run.
+        #[arg(long, conflicts_with = "widgets")]
+        no_widgets: bool,
+        /// Publish the summary to the configured GitHub Pages repo.
+        #[arg(long)]
+        github_pages: bool,
+        /// Skip GitHub Pages for this run.
+        #[arg(long, conflicts_with = "github_pages")]
+        no_github_pages: bool,
     },
     /// Import sessions from a published directory or gist into the local store.
     Pull {
@@ -279,53 +289,122 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             public,
             url,
             widgets,
+            no_widgets,
+            github_pages,
+            no_github_pages,
         } => {
-            if widgets {
-                let prices = token_usage_cli::load_price_table(&store_path);
-                let service_url = url.as_deref().unwrap_or("https://widgets.mintychochip.dev");
-                let widget_url = token_usage_cli::widgets_publish::publish_to_widgets(
-                    &store,
-                    service_url,
-                    prices.as_ref(),
-                )?;
-                println!("{widget_url}");
-                return Ok(());
+            let cfg =
+                publish_config::load_or_create(&publish_config::default_config_path())?;
+
+            let explicit_target = dir.is_some() || gist.is_some();
+            let do_widgets =
+                (widgets || (!explicit_target && cfg.widgets.enabled)) && !no_widgets;
+            let do_gh_pages = (github_pages
+                || (!explicit_target && cfg.github_pages.enabled))
+                && !no_github_pages;
+            let do_dir = dir.is_some();
+            let do_gist =
+                gist.is_some() || (!do_dir && !do_gh_pages && !do_widgets && !explicit_target);
+
+            if !do_widgets && !do_gh_pages && !do_dir && !do_gist {
+                return Err("no publish target selected or enabled".into());
             }
-            let bundle = bundle_from_store(&store, unix_now())?;
-            if let Some(dir) = dir {
-                write_bundle(&dir, &bundle, !public)?;
-                std::fs::write(dir.join("usage-card.js"), USAGE_CARD_JS)?;
-                let base = url.as_deref().unwrap_or(".");
-                let snippets = publish_snippets(base);
-                std::fs::write(dir.join("snippets.md"), &snippets)?;
-                println!("{snippets}");
-                return Ok(());
-            }
-            let mut cfg = load_github_config(&store_path);
-            let remembered = match gist.as_deref() {
-                None | Some("") => cfg.gist_id.clone(),
-                Some(id) => Some(id.to_string()),
-            };
-            let work = std::env::temp_dir().join(format!(
-                "token-usage-publish-{}-{}",
-                std::process::id(),
-                unix_now()
-            ));
-            let gist = push_gist(&bundle, remembered.as_deref(), public, &work)?;
-            let _ = std::fs::remove_dir_all(&work);
-            let owner = gist.owner.or(cfg.gist_owner.clone()).or_else(gh_login);
-            cfg.gist_id = Some(gist.id.clone());
-            cfg.gist_owner = owner.clone();
-            save_github_config(&store_path, &cfg)?;
-            let base = match (url, owner.as_deref()) {
-                (Some(base), _) => base,
-                (None, Some(owner)) => gist_raw_base(owner, &gist.id),
-                (None, None) => {
-                    return Err("could not determine gist owner for raw URLs".into());
+
+            let generated_at = unix_now();
+            let prices = load_price_table(&store_path);
+            let listed = store.list().map_err(|e| e.to_string())?;
+            let summary = summarize_priced(&listed, generated_at, prices.as_ref());
+            let bundle = bundle_from_summary(&summary, &listed)?;
+
+            let mut errors: Vec<String> = Vec::new();
+
+            if do_widgets {
+                let service_url = url
+                    .as_deref()
+                    .unwrap_or(&cfg.widgets.url);
+                match widgets_publish::publish_summary(&summary, service_url) {
+                    Ok(widget_url) => println!("{widget_url}"),
+                    Err(e) => errors.push(format!("widgets: {e}")),
                 }
-            };
-            println!("{}", gist.id);
-            println!("{}", publish_snippets(&base));
+            }
+
+            if do_gh_pages {
+                if cfg.github_pages.repo.is_empty() {
+                    return Err("--github-pages requested but publish-config.github_pages.repo is empty".into());
+                }
+                match github_pages::publish(
+                    &cfg.github_pages.repo,
+                    &bundle,
+                    USAGE_CARD_JS,
+                    generated_at,
+                ) {
+                    Ok(page_url) => println!("{page_url}"),
+                    Err(e) => errors.push(format!("github-pages: {e}")),
+                }
+            }
+
+            if let Some(dir) = dir {
+                if let Err(e) = write_bundle(&dir, &bundle, !public) {
+                    errors.push(format!("dir: {e}"));
+                } else if let Err(e) = std::fs::write(dir.join("usage-card.js"), USAGE_CARD_JS) {
+                    errors.push(format!("dir: {e}"));
+                } else {
+                    let base = url.as_deref().unwrap_or(".");
+                    let snippets = publish_snippets(base);
+                    if std::fs::write(dir.join("snippets.md"), &snippets).is_ok() {
+                        println!("{snippets}");
+                    } else {
+                        errors.push("dir: failed to write snippets.md".into());
+                    }
+                }
+            }
+
+            if do_gist {
+                let mut gh_cfg = load_github_config(&store_path);
+                let remembered = match gist.as_deref() {
+                    None | Some("") => gh_cfg.gist_id.clone(),
+                    Some(id) => Some(id.to_string()),
+                };
+                let work = std::env::temp_dir().join(format!(
+                    "token-usage-publish-{}-{}",
+                    std::process::id(),
+                    generated_at
+                ));
+                match push_gist(&bundle, remembered.as_deref(), public, &work) {
+                    Ok(gist_ref) => {
+                        let _ = std::fs::remove_dir_all(&work);
+                        let owner = gist_ref
+                            .owner
+                            .or(gh_cfg.gist_owner.clone())
+                            .or_else(gh_login);
+                        gh_cfg.gist_id = Some(gist_ref.id.clone());
+                        gh_cfg.gist_owner = owner.clone();
+                        let _ = save_github_config(&store_path, &gh_cfg);
+                        let base = match (url.as_deref(), owner.as_deref()) {
+                            (Some(base), _) => base.to_string(),
+                            (None, Some(owner)) => gist_raw_base(owner, &gist_ref.id),
+                            (None, None) => {
+                                errors.push(
+                                    "gist: could not determine gist owner for raw URLs".into(),
+                                );
+                                String::new()
+                            }
+                        };
+                        if !base.is_empty() {
+                            println!("{}", gist_ref.id);
+                            println!("{}", publish_snippets(&base));
+                        }
+                    }
+                    Err(e) => {
+                        let _ = std::fs::remove_dir_all(&work);
+                        errors.push(format!("gist: {e}"));
+                    }
+                }
+            }
+
+            if !errors.is_empty() {
+                return Err(errors.join("; ").into());
+            }
         }
         Command::Pull { dir, gist } => {
             if let Some(dir) = dir {

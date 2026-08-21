@@ -4,27 +4,16 @@ use base64::Engine;
 use serde_json::{json, Value};
 use token_usage_store::FileStore;
 
-use crate::{identity::load_or_generate, summarize_priced, PriceTable};
+use crate::{identity::load_or_generate, summarize_priced, PriceTable, UsageSummary};
 
-/// Publish the current local store's aggregate summary to a widget service.
+/// Publish a pre-computed summary to a widget service.
 ///
-/// Returns the public summary URL for the user's UUID.
-pub fn publish_to_widgets(
-    store: &FileStore,
-    service_url: &str,
-    prices: Option<&PriceTable>,
-) -> Result<String, String> {
+/// Loads the local identity, signs the summary, POSTs it, and returns the public
+/// summary URL for the user\'s UUID.
+pub fn publish_summary(summary: &UsageSummary, service_url: &str) -> Result<String, String> {
     let id = load_or_generate().map_err(|e| format!("identity: {e}"))?;
 
-    let listed = store.list().map_err(|e| e.to_string())?;
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let summary = summarize_priced(&listed, now, prices);
-
     let display_name = std::env::var("TOKTALLY_DISPLAY_NAME").ok();
-
     let public_key_b64 = base64::engine::general_purpose::STANDARD.encode(&id.public_key);
 
     let mut signed_body = json!({
@@ -36,7 +25,6 @@ pub fn publish_to_widgets(
 
     let signature = id.sign_json(&signed_body)?;
     let signature_b64 = base64::engine::general_purpose::STANDARD.encode(&signature);
-
     signed_body["signature"] = json!(signature_b64);
 
     let url = format!("{service_url}/api/v1/publish");
@@ -52,99 +40,128 @@ pub fn publish_to_widgets(
     Ok(format!("{service_url}/u/{}/usage-summary.json", id.uuid))
 }
 
+/// Publish the current local store's aggregate summary to a widget service.
+///
+/// Returns the public summary URL for the user\'s UUID.
+pub fn publish_to_widgets(
+    store: &FileStore,
+    service_url: &str,
+    prices: Option<&PriceTable>,
+) -> Result<String, String> {
+    let listed = store.list().map_err(|e| e.to_string())?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let summary = summarize_priced(&listed, now, prices);
+    publish_summary(&summary, service_url)
+}
+
 /// Verify a widget publish body returned from a client.
 ///
 /// `body` is the full JSON request. This function removes the `signature` field,
 /// verifies the remaining payload, and returns `(uuid, summary)` on success.
 pub fn verify_publish_body(body: &Value) -> Result<(String, Value), String> {
-    let uuid = body
-        .get("uuid")
-        .and_then(|v| v.as_str())
-        .ok_or("missing uuid")?
-        .to_string();
-
-    let public_key_b64 = body
-        .get("public_key")
-        .and_then(|v| v.as_str())
-        .ok_or("missing public_key")?;
-    let public_key = base64::engine::general_purpose::STANDARD
-        .decode(public_key_b64)
-        .map_err(|e| format!("bad public_key: {e}"))?;
-
-    let signature_b64 = body
+    let mut signed = body.clone();
+    let signature_b64 = signed
         .get("signature")
         .and_then(|v| v.as_str())
         .ok_or("missing signature")?;
     let signature = base64::engine::general_purpose::STANDARD
         .decode(signature_b64)
-        .map_err(|e| format!("bad signature: {e}"))?;
+        .map_err(|e| e.to_string())?;
+    signed
+        .as_object_mut()
+        .ok_or("body is not an object")?
+        .remove("signature");
 
-    let summary = body
+    let uuid = signed
+        .get("uuid")
+        .and_then(|v| v.as_str())
+        .ok_or("missing uuid")?
+        .to_string();
+
+    let summary = signed
         .get("summary")
         .cloned()
         .ok_or("missing summary")?;
 
-    let mut signed = body.clone();
-    signed.as_object_mut().unwrap().remove("signature");
+    let public_key_b64 = signed
+        .get("public_key")
+        .and_then(|v| v.as_str())
+        .ok_or("missing public_key")?;
+    let public_key = base64::engine::general_purpose::STANDARD
+        .decode(public_key_b64)
+        .map_err(|e| e.to_string())?;
+
     if !crate::identity::verify_json(&signed, &public_key, &signature)? {
         return Err("signature verification failed".to_string());
     }
 
     Ok((uuid, summary))
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::identity::load_or_generate_in;
-    use serde_json::json;
 
     #[test]
     fn round_trip_sign_and_verify_publish_body() {
-        let tmp = tempfile::tempdir().unwrap();
-        let id = load_or_generate_in(tmp.path()).unwrap();
+        let identity = crate::identity::load_or_generate_in(
+            &std::env::temp_dir().join(format!("toktally-widget-test-{}", std::process::id())),
+        )
+        .unwrap();
 
-        let summary = json!({
-            "totals": { "input_tokens": 100, "output_tokens": 50 },
-            "estimated_cost_usd": 1.23,
-        });
-        let display_name: Option<String> = None;
-        let public_key_b64 = base64::engine::general_purpose::STANDARD.encode(&id.public_key);
+        let summary = UsageSummary {
+            generated_at: 1,
+            harnesses: vec![],
+            input_tokens: 100,
+            output_tokens: 50,
+            estimated_cost_usd: None,
+        };
 
         let mut body = json!({
-            "uuid": id.uuid,
-            "public_key": public_key_b64,
+            "uuid": identity.uuid,
+            "public_key": base64::engine::general_purpose::STANDARD.encode(&identity.public_key),
             "summary": summary,
-            "display_name": display_name,
         });
 
-        let sig = id.sign_json(&body).unwrap();
-        body["signature"] = json!(base64::engine::general_purpose::STANDARD.encode(&sig));
+        let signature = identity.sign_json(&body).unwrap();
+        let signature_b64 = base64::engine::general_purpose::STANDARD.encode(&signature);
+        body["signature"] = json!(signature_b64);
 
-        let (uuid, got_summary) = verify_publish_body(&body).unwrap();
-        assert_eq!(uuid, id.uuid);
-        assert_eq!(got_summary, summary);
+        let (verified_uuid, verified_summary) = verify_publish_body(&body).unwrap();
+        assert_eq!(verified_uuid, identity.uuid);
+        assert_eq!(verified_summary["input_tokens"], 100);
+        assert_eq!(verified_summary["output_tokens"], 50);
     }
 
     #[test]
     fn verify_publish_body_rejects_tampered_summary() {
-        let tmp = tempfile::tempdir().unwrap();
-        let id = load_or_generate_in(tmp.path()).unwrap();
+        let identity = crate::identity::load_or_generate_in(
+            &std::env::temp_dir().join(format!("toktally-widget-test-{}", std::process::id())),
+        )
+        .unwrap();
 
-        let summary = json!({ "totals": { "input_tokens": 100 } });
-        let public_key_b64 = base64::engine::general_purpose::STANDARD.encode(&id.public_key);
+        let summary = UsageSummary {
+            generated_at: 1,
+            harnesses: vec![],
+            input_tokens: 100,
+            output_tokens: 50,
+            estimated_cost_usd: None,
+        };
 
         let mut body = json!({
-            "uuid": id.uuid,
-            "public_key": public_key_b64,
+            "uuid": identity.uuid,
+            "public_key": base64::engine::general_purpose::STANDARD.encode(&identity.public_key),
             "summary": summary,
-            "display_name": serde_json::Value::Null,
         });
 
-        let sig = id.sign_json(&body).unwrap();
-        body["signature"] = json!(base64::engine::general_purpose::STANDARD.encode(&sig));
+        let signature = identity.sign_json(&body).unwrap();
+        let signature_b64 = base64::engine::general_purpose::STANDARD.encode(&signature);
+        body["signature"] = json!(signature_b64);
 
-        // Tamper with summary
-        body["summary"]["totals"]["input_tokens"] = json!(999);
+        body["summary"]["input_tokens"] = 999.into();
 
         assert!(verify_publish_body(&body).is_err());
     }
