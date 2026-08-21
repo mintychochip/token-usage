@@ -3,6 +3,7 @@
 use std::io::{self, Read};
 use std::path::PathBuf;
 
+use base64::Engine;
 use clap::{Parser, Subcommand};
 use token_usage_adapters::adapt;
 use token_usage_cli::{
@@ -99,6 +100,11 @@ enum Command {
         #[arg(long, num_args = 0..=1, default_missing_value = "")]
         gist: Option<String>,
     },
+    /// Show the machine's widget identity (UUID and public key).
+    Identity {
+        #[arg(long)]
+        show_secret: bool,
+    },
 }
 
 fn main() {
@@ -107,9 +113,22 @@ fn main() {
         std::process::exit(1);
     }
 }
-
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
+
+    if let Command::Identity { show_secret } = cli.command {
+        let id = token_usage_cli::identity::load_or_generate()?;
+        println!("uuid: {}", id.uuid);
+        println!("public_key: {}", base64::engine::general_purpose::STANDARD.encode(&id.public_key));
+        if show_secret {
+            println!(
+                "secret_path: {}",
+                token_usage_cli::identity::key_dir().join("identity.sec").display()
+            );
+        }
+        return Ok(());
+    }
+
     let store_path = cli.store.unwrap_or_else(default_store_path);
     let store = FileStore::open(&store_path)?;
     let roots = cli
@@ -306,6 +325,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let id = id.ok_or("no gist id; pass --gist ID or publish first")?;
             pull_gist(&store, &id)?;
         }
+        Command::Identity { .. } => unreachable!("identity handled before store is opened"),
     }
     Ok(())
 }
