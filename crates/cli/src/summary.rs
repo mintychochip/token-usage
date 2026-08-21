@@ -150,7 +150,7 @@ fn model_totals(observations: &[&UsageObservation]) -> Vec<ModelTotals> {
             });
         }
     }
-    rows.sort_by(|a, b| b.input_tokens.cmp(&a.input_tokens));
+    rows.sort_by_key(|row| std::cmp::Reverse(row.input_tokens));
     rows
 }
 
@@ -206,7 +206,7 @@ fn provider_from_model(model: &str) -> String {
     // Strip a trailing version-ish suffix like `-4.5` or `-v3`.
     let base = first
         .split('-')
-        .take_while(|part| !part.chars().next().map_or(false, |c| c.is_ascii_digit()))
+        .take_while(|part| !part.chars().next().is_some_and(|c| c.is_ascii_digit()))
         .collect::<Vec<_>>()
         .join("-");
     if base.is_empty() {

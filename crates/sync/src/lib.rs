@@ -125,20 +125,20 @@ pub fn enrich_harness_metadata(
         if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
             continue;
         }
-        let Some((session_id, model, recorded_at)) = read_metadata(&path)? else {
+        let Some(metadata) = read_metadata(&path)? else {
             continue;
         };
-        let identity = ObservationIdentity::new(harness, SessionId::parse(&session_id)?);
+        let identity = ObservationIdentity::new(harness, SessionId::parse(&metadata.session_id)?);
         let Some(found) = existing.remove(&identity) else {
             unmatched += 1;
             continue;
         };
         let mut updated = found;
-        if let Some(model) = model {
+        if let Some(model) = metadata.model {
             updated = updated.with_model(model);
             with_model += 1;
         }
-        if let Some(at) = recorded_at {
+        if let Some(at) = metadata.recorded_at {
             updated = updated.with_recorded_at(at);
             with_recorded_at += 1;
         }
@@ -155,8 +155,15 @@ pub fn enrich_harness_metadata(
     })
 }
 
-/// Extract `(session_id, model, recorded_at)` from the leading lines of a JSONL file.
-fn read_metadata(path: &Path) -> Result<Option<(String, Option<String>, Option<u64>)>, SyncError> {
+#[derive(Debug)]
+struct SessionMetadata {
+    session_id: String,
+    model: Option<String>,
+    recorded_at: Option<u64>,
+}
+
+/// Extract session identity and optional metadata from the leading JSONL lines.
+fn read_metadata(path: &Path) -> Result<Option<SessionMetadata>, SyncError> {
     use std::io::BufRead;
     let file = fs::File::open(path)?;
     let reader = std::io::BufReader::new(file);
@@ -205,7 +212,11 @@ fn read_metadata(path: &Path) -> Result<Option<(String, Option<String>, Option<u
             break;
         }
     }
-    Ok(session_id.map(|id| (id, model, recorded_at)))
+    Ok(session_id.map(|session_id| SessionMetadata {
+        session_id,
+        model,
+        recorded_at,
+    }))
 }
 
 /// Scan every named harness that has never been synced.

@@ -30,12 +30,6 @@ fn summary(days: Vec<DayTotals>) -> UsageSummary {
     }
 }
 
-fn fill_colors(svg: &str) -> Vec<String> {
-    svg.match_indices("fill=\"#")
-        .map(|(i, _)| svg[i + 6..i + 13].to_string())
-        .collect()
-}
-
 #[test]
 fn distinct_providers_never_share_a_bar_color() {
     let names = [
