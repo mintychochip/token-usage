@@ -1,0 +1,19 @@
+[package]
+name = "toktally-widgets-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Tiny widget service for signed token-usage summaries"
+
+[[bin]]
+name = "toktally-widgets-api"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "macros"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+toktally-cli = { path = "../cli" }
+base64 = "0.22.1"
+parking_lot = "0.12"
