@@ -26,7 +26,9 @@ the reporter would persist as user config.
 | `crates/domain` | Pure types. No HTTP, no filesystem. |
 | `crates/store` | Durable JSON store. Same `(harness, session_id)` updates in place. |
 | `crates/adapters` | Translate harness JSON into domain observations. |
-| `crates/cli` | `toktally-api` and `toktally`. |
+| `crates/cli` | `toktally` reporter CLI. |
+| `crates/web` | Axum HTTP API (`toktally-web`); wire JSON types live here. |
+| `crates/widgets-api` | Hosted widget rendering/publish service. |
 | `plugins/<harness>` | Host-native hooks/manifests. Scripts only exec the reporter. |
 | `scripts/` | `install.sh` and `update.sh` for prefix installs. |
 | `crates/sync` | Walk existing host session stores; first-use ingest. |
