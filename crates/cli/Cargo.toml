@@ -18,7 +18,6 @@ name = "toktally"
 path = "src/bin/toktally.rs"
 
 [dependencies]
-axum.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -28,6 +27,7 @@ toktally-adapters.workspace = true
 toktally-domain.workspace = true
 toktally-store.workspace = true
 toktally-sync.workspace = true
+toktally-web.workspace = true
 ureq.workspace = true
 base64 = "0.22.1"
 blake3 = "1.5.1"
@@ -35,6 +35,7 @@ ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 rand = "0.8.5"
 
 [dev-dependencies]
+axum.workspace = true
 http-body-util.workspace = true
 tempfile.workspace = true
 tower.workspace = true

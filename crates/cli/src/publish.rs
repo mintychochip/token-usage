@@ -9,7 +9,7 @@ use toktally_domain::UsageObservation;
 use toktally_store::FileStore;
 
 use crate::summary::{shields_badge, summarize, UsageSummary};
-use crate::wire::WireObservation;
+use toktally_web::WireObservation;
 
 /// Files written for GitHub (gist or a repo directory).
 #[derive(Debug, Clone, PartialEq, Eq)]

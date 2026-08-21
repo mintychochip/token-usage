@@ -7,6 +7,7 @@ members = [
     "crates/sync",
     "crates/cli",
     "crates/widgets-api",
+    "crates/web",
 ]
 
 [workspace.package]
@@ -19,6 +20,7 @@ toktally-domain = { path = "crates/domain" }
 toktally-store = { path = "crates/store" }
 toktally-adapters = { path = "crates/adapters" }
 toktally-sync = { path = "crates/sync" }
+toktally-web = { path = "crates/web" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

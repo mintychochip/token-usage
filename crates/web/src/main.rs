@@ -1,4 +1,8 @@
-//! HTTP entry point for the toktally store.
+//! HTTP web entry point for the toktally store.
+//!
+//! This binary delegates to the HTTP implementation in this crate and uses
+//! the local JSON `FileStore`. SQLite/multi-tenant backends are left for a
+//! later slice.
 
 use std::env;
 use std::net::SocketAddr;
@@ -27,7 +31,7 @@ async fn main() {
         toktally_web::serve(store, addr).await
     };
     if let Err(err) = result {
-        eprintln!("api error: {err}");
+        eprintln!("web error: {err}");
         std::process::exit(1);
     }
 }
