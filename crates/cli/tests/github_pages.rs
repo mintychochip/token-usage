@@ -22,12 +22,11 @@ fn ingest_fixture(store: &Path, home: &Path) {
     );
 }
 
-fn write_fake_gh(dir: &Path, state: &Path) -> PathBuf {
-    let py = format!(
-        r#"import os, shutil, sys
+fn write_fake_gh(dir: &Path) -> PathBuf {
+    let py = r#"import os, shutil, sys
 from pathlib import Path
 
-state = Path("{state}")
+state = Path(os.environ["FAKE_GH_STATE"])
 state.mkdir(parents=True, exist_ok=True)
 
 args = sys.argv[1:]
@@ -69,9 +68,7 @@ if args[:2] == ["repo", "clone"]:
 
 print("unexpected fake-gh invocation: " + " ".join(args), file=sys.stderr)
 sys.exit(2)
-"#,
-        state = state.display()
-    );
+"#;
 
     #[cfg(unix)]
     {
@@ -175,7 +172,7 @@ fn github_pages_publishes_bundle_on_first_run() {
 
     let gh_state = dir.path().join("gh");
     fs::create_dir_all(&gh_state).unwrap();
-    let fake_gh = write_fake_gh(dir.path(), &gh_state);
+    let fake_gh = write_fake_gh(dir.path());
     let fake_git = write_fake_git(dir.path());
 
     let mut paths = vec![fake_git.parent().unwrap().to_path_buf()];
@@ -194,6 +191,7 @@ fn github_pages_publishes_bundle_on_first_run() {
     let out = Command::new(env!("CARGO_BIN_EXE_toktally"))
         .env("PATH", &path)
         .env("TOKEN_USAGE_GH", &fake_gh)
+        .env("FAKE_GH_STATE", &gh_state)
         .env("TOKEN_USAGE_STORE", &store)
         .env("TOKEN_USAGE_HARNESS_HOME", &home)
         .env("TOKTALLY_IDENTITY_DIR", &key_dir)
