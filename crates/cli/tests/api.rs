@@ -9,13 +9,13 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tempfile::tempdir;
-use toktally_cli::{app, ApiState, WireObservation};
+use toktally_cli::{app, ApiState, WireObservation, WireSessionList, WireSyncStatus};
 use toktally_domain::{
     ExtraCounts, Harness, ObservationIdentity, ObservationSource, SessionId,
     SessionStoreCompleteness, UsageCounts, UsageObservation,
 };
 use toktally_store::FileStore;
-use toktally_sync::SyncRoots;
+use toktally_sync::{sync_harness, SyncRoots};
 use tower::ServiceExt;
 
 fn sample_obs() -> UsageObservation {
@@ -76,6 +76,50 @@ async fn router_post_then_get_returns_submitted_counts() {
     assert_eq!(got.session_id, "thr_api");
     assert_eq!(got.source, ObservationSource::PluginReport);
     assert!(got.last_synced_at.is_some());
+}
+
+#[tokio::test]
+async fn list_scans_remaining_harnesses_after_one_is_already_synced() {
+    let dir = tempdir().unwrap();
+    let store = FileStore::open(dir.path().join("store.json")).unwrap();
+    let fixture_home =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sync/fixtures/home");
+    let roots = SyncRoots { home: fixture_home };
+
+    sync_harness(&store, Harness::Grok, &roots, 1).unwrap();
+    assert!(!store.needs_first_sync(Harness::Grok).unwrap());
+    assert!(store.needs_first_sync(Harness::Pi).unwrap());
+
+    let router = app(ApiState::with_roots(store, roots));
+
+    let list = router
+        .clone()
+        .oneshot(Request::get("/v1/sessions").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(list.status(), StatusCode::OK);
+    let list: WireSessionList =
+        serde_json::from_slice(&list.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert!(
+        list.sessions.iter().any(|s| s.harness == Harness::Pi),
+        "list must scan and include Pi sessions after Grok is already synced"
+    );
+
+    let sync = router
+        .oneshot(Request::get("/v1/sync").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(sync.status(), StatusCode::OK);
+    let status: WireSyncStatus =
+        serde_json::from_slice(&sync.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert!(
+        status.harnesses.iter().any(|h| h.harness == Harness::Grok),
+        "Grok sync record must be preserved"
+    );
+    assert!(
+        status.harnesses.iter().any(|h| h.harness == Harness::Pi),
+        "Pi must be marked synced after list scans remaining harnesses"
+    );
 }
 
 #[tokio::test]

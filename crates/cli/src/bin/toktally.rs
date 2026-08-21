@@ -249,9 +249,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string_pretty(&sessions)?);
         }
         Command::List => {
-            if store.list_harness_syncs()?.is_empty() {
-                sync_all_needed(&store, &roots, unix_now())?;
-            }
+            sync_all_needed(&store, &roots, unix_now())?;
             let sessions: Vec<_> = store
                 .list()?
                 .iter()
