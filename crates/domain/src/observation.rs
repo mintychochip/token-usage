@@ -63,6 +63,9 @@ pub struct UsageObservation {
     /// Unix seconds when this identity was last written to the store.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     last_synced_at: Option<u64>,
+    /// Unix seconds when the host recorded this session (distinct from sync time).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    recorded_at: Option<u64>,
     /// Host model id when the payload named one. Used to look up internal prices.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     model: Option<String>,
@@ -82,6 +85,7 @@ impl UsageObservation {
             source,
             completeness,
             last_synced_at: None,
+            recorded_at: None,
             model: None,
         }
     }
@@ -89,6 +93,12 @@ impl UsageObservation {
     /// Stamp (or replace) the last-synced time.
     pub fn with_last_synced_at(mut self, unix_seconds: u64) -> Self {
         self.last_synced_at = Some(unix_seconds);
+        self
+    }
+
+    /// Record the host session time, in Unix seconds.
+    pub fn with_recorded_at(mut self, unix_seconds: u64) -> Self {
+        self.recorded_at = Some(unix_seconds);
         self
     }
 
@@ -125,6 +135,11 @@ impl UsageObservation {
     /// When this identity was last synced, if known.
     pub fn last_synced_at(&self) -> Option<u64> {
         self.last_synced_at
+    }
+
+    /// When the host recorded this session, if known.
+    pub fn recorded_at(&self) -> Option<u64> {
+        self.recorded_at
     }
 
     /// Host model id, if the harness named one.

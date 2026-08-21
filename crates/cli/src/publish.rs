@@ -16,6 +16,7 @@ use crate::wire::WireObservation;
 pub struct PublishBundle {
     pub summary_json: String,
     pub shields_json: String,
+    pub chart_svg: String,
     pub sessions_jsonl: String,
 }
 
@@ -57,6 +58,7 @@ pub fn bundle_from_summary(
             "{}\n",
             serde_json::to_string_pretty(&shields_badge(summary)).map_err(|e| e.to_string())?
         ),
+        chart_svg: crate::chart::chart_svg(summary),
         sessions_jsonl,
     })
 }
@@ -77,6 +79,7 @@ pub fn write_bundle(
     fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     fs::write(dir.join("usage-summary.json"), &bundle.summary_json).map_err(|e| e.to_string())?;
     fs::write(dir.join("usage-badge.json"), &bundle.shields_json).map_err(|e| e.to_string())?;
+    fs::write(dir.join("chart.svg"), &bundle.chart_svg).map_err(|e| e.to_string())?;
     if include_sessions {
         fs::write(dir.join("usage.jsonl"), &bundle.sessions_jsonl).map_err(|e| e.to_string())?;
     } else {

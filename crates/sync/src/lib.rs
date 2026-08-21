@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 use toktally_adapters::{adapt, AdaptError};
-use toktally_domain::Harness;
+use toktally_domain::{Harness, ObservationIdentity, SessionId, UsageObservation};
 use toktally_store::{FileStore, StoreError};
 
 /// Failures while scanning or ingesting discovered sessions.
@@ -22,6 +22,8 @@ pub enum SyncError {
     Json(#[from] serde_json::Error),
     #[error("adapt error: {0}")]
     Adapt(#[from] AdaptError),
+    #[error("domain error: {0}")]
+    Domain(#[from] toktally_domain::DomainError),
 }
 
 /// Where to look for host session files.
@@ -77,6 +79,133 @@ pub fn sync_harness(
         skipped,
         last_synced_at,
     })
+}
+
+/// Result of enriching existing sessions with model + recorded_at metadata.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct EnrichReport {
+    pub harness: Harness,
+    pub matched: u64,
+    pub unmatched: u64,
+    pub with_model: u64,
+    pub with_recorded_at: u64,
+}
+
+/// Fast metadata pass over existing oh-my-pi JSONL sessions.
+///
+/// Reads only the leading lines of each file (where the `session` record and
+/// first messages live) to extract `session_id`, `model`, and `recorded_at`,
+/// then updates the existing store entry by exact identity. Token counts are
+/// preserved from the store — nothing is re-aggregated.
+pub fn enrich_harness_metadata(
+    store: &FileStore,
+    harness: Harness,
+    roots: &SyncRoots,
+) -> Result<EnrichReport, SyncError> {
+    use std::collections::HashMap;
+    let home = &roots.home;
+    let root = match harness {
+        Harness::OhMyPi => home.join(".omp/agent/sessions"),
+        _ => return Err(SyncError::Adapt(AdaptError::MissingSessionId)),
+    };
+    // Load the store once; match against an in-memory index instead of
+    // re-reading the whole file per session.
+    let mut existing: HashMap<ObservationIdentity, UsageObservation> = store
+        .list()?
+        .into_iter()
+        .map(|obs| (obs.identity().clone(), obs))
+        .collect();
+
+    let mut matched = 0;
+    let mut unmatched = 0;
+    let mut with_model = 0;
+    let mut with_recorded_at = 0;
+    let mut updates: Vec<UsageObservation> = Vec::new();
+    for path in walk_files(&root, "")? {
+        if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+            continue;
+        }
+        let Some((session_id, model, recorded_at)) = read_metadata(&path)? else {
+            continue;
+        };
+        let identity = ObservationIdentity::new(harness, SessionId::parse(&session_id)?);
+        let Some(found) = existing.remove(&identity) else {
+            unmatched += 1;
+            continue;
+        };
+        let mut updated = found;
+        if let Some(model) = model {
+            updated = updated.with_model(model);
+            with_model += 1;
+        }
+        if let Some(at) = recorded_at {
+            updated = updated.with_recorded_at(at);
+            with_recorded_at += 1;
+        }
+        updates.push(updated);
+        matched += 1;
+    }
+    store.bulk_ingest(updates)?;
+    Ok(EnrichReport {
+        harness,
+        matched,
+        unmatched,
+        with_model,
+        with_recorded_at,
+    })
+}
+
+/// Extract `(session_id, model, recorded_at)` from the leading lines of a JSONL file.
+fn read_metadata(path: &Path) -> Result<Option<(String, Option<String>, Option<u64>)>, SyncError> {
+    use std::io::BufRead;
+    let file = fs::File::open(path)?;
+    let reader = std::io::BufReader::new(file);
+    let mut session_id: Option<String> = None;
+    let mut model: Option<String> = None;
+    let mut recorded_at: Option<u64> = None;
+    for line in reader.lines().take(60) {
+        let line = line?.trim().to_string();
+        if line.is_empty() {
+            continue;
+        }
+        let value: Value = match serde_json::from_str(&line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        if session_id.is_none() {
+            if value.get("type").and_then(Value::as_str) == Some("session") {
+                if let Some(id) = value.get("id").and_then(Value::as_str) {
+                    session_id = Some(id.to_string());
+                }
+                if let Some(ts) = value.get("timestamp").and_then(Value::as_str) {
+                    recorded_at = parse_timestamp(ts);
+                }
+            }
+            if let Some(id) = value
+                .get("session_id")
+                .or_else(|| value.get("sessionId"))
+                .and_then(Value::as_str)
+            {
+                session_id = Some(id.to_string());
+            }
+        }
+        if model.is_none() {
+            if let Some(m) = value.get("model").and_then(Value::as_str) {
+                if !m.is_empty() {
+                    model = Some(m.to_string());
+                }
+            }
+        }
+        if recorded_at.is_none() {
+            if let Some(ts) = value.get("timestamp").and_then(Value::as_str) {
+                recorded_at = parse_timestamp(ts);
+            }
+        }
+        if session_id.is_some() && model.is_some() && recorded_at.is_some() {
+            break;
+        }
+    }
+    Ok(session_id.map(|id| (id, model, recorded_at)))
 }
 
 /// Scan every named harness that has never been synced.
@@ -249,6 +378,8 @@ fn aggregate_jsonl(path: &Path) -> Result<Option<Value>, SyncError> {
     let mut output = 0u64;
     let mut cache_read = 0u64;
     let mut saw_usage = false;
+    let mut model: Option<String> = None;
+    let mut recorded_at: Option<u64> = None;
     for line in raw.lines() {
         let line = line.trim();
         if line.is_empty() {
@@ -263,6 +394,9 @@ fn aggregate_jsonl(path: &Path) -> Result<Option<Value>, SyncError> {
                 if let Some(id) = value.get("id").and_then(Value::as_str) {
                     session_id = Some(id.to_string());
                 }
+                if let Some(ts) = value.get("timestamp").and_then(Value::as_str) {
+                    recorded_at = parse_timestamp(ts).or(recorded_at);
+                }
             }
             if let Some(id) = value
                 .get("session_id")
@@ -270,6 +404,18 @@ fn aggregate_jsonl(path: &Path) -> Result<Option<Value>, SyncError> {
                 .and_then(Value::as_str)
             {
                 session_id = Some(id.to_string());
+            }
+        }
+        if model.is_none() {
+            if let Some(m) = value.get("model").and_then(Value::as_str) {
+                if !m.is_empty() {
+                    model = Some(m.to_string());
+                }
+            }
+        }
+        if recorded_at.is_none() {
+            if let Some(ts) = value.get("timestamp").and_then(Value::as_str) {
+                recorded_at = parse_timestamp(ts);
             }
         }
         if let Some(usage) = find_usage(&value) {
@@ -307,14 +453,51 @@ fn aggregate_jsonl(path: &Path) -> Result<Option<Value>, SyncError> {
             .unwrap_or("unknown")
             .to_string()
     });
-    Ok(Some(json!({
+    let mut payload = json!({
         "sessionId": session_id,
         "stats": {
             "inputTokens": input,
             "outputTokens": output,
             "cacheReadTokens": cache_read
         }
-    })))
+    });
+    if let Some(model) = model {
+        payload["model"] = json!(model);
+    }
+    if let Some(recorded_at) = recorded_at {
+        payload["recordedAt"] = json!(recorded_at);
+    }
+    Ok(Some(payload))
+}
+
+/// Parse an ISO-8601 timestamp (e.g. `2026-07-11T04:53:19.238Z`) to Unix seconds.
+fn parse_timestamp(raw: &str) -> Option<u64> {
+    let raw = raw.trim();
+    // Accept a trailing 'Z' and optional fractional seconds.
+    let body = raw.strip_suffix('Z').unwrap_or(raw);
+    let (date, time) = body.split_once('T')?;
+    let mut parts = date.split('-');
+    let year: i64 = parts.next()?.parse().ok()?;
+    let month: i64 = parts.next()?.parse().ok()?;
+    let day: i64 = parts.next()?.parse().ok()?;
+    let mut time_parts = time.split(':');
+    let hour: i64 = time_parts.next()?.parse().ok()?;
+    let minute: i64 = time_parts.next()?.parse().ok()?;
+    let sec_raw = time_parts.next()?;
+    let sec: i64 = sec_raw.split('.').next()?.parse().ok()?;
+    Some(ymd_hms_to_unix(year, month, day, hour, minute, sec))
+}
+
+/// Days-from-civil algorithm (Howard Hinnant) -> Unix seconds (UTC).
+fn ymd_hms_to_unix(year: i64, month: i64, day: i64, hour: i64, min: i64, sec: i64) -> u64 {
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (month + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe - 719468;
+    (days * 86400 + hour * 3600 + min * 60 + sec) as u64
 }
 
 fn find_usage(value: &Value) -> Option<&Value> {

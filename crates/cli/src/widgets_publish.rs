@@ -118,6 +118,8 @@ mod tests {
             input_tokens: 100,
             output_tokens: 50,
             estimated_cost_usd: None,
+            models: vec![],
+            days: vec![],
         };
 
         let mut body = json!({
@@ -149,6 +151,8 @@ mod tests {
             input_tokens: 100,
             output_tokens: 50,
             estimated_cost_usd: None,
+            models: vec![],
+            days: vec![],
         };
 
         let mut body = json!({
