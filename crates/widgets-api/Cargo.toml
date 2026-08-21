@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 description = "Tiny widget service for signed token-usage summaries"
 
+[lib]
+name = "toktally_widgets_api"
+path = "src/lib.rs"
+
 [[bin]]
 name = "toktally-widgets-api"
 path = "src/main.rs"
@@ -17,3 +21,10 @@ serde_json.workspace = true
 toktally-cli = { path = "../cli" }
 base64 = "0.22.1"
 parking_lot = "0.12"
+tempfile.workspace = true
+
+[dev-dependencies]
+http-body-util.workspace = true
+tower = { workspace = true, features = ["util"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tempfile.workspace = true
