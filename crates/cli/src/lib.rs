@@ -3,6 +3,7 @@
 mod components;
 mod pricing;
 pub mod identity;
+pub mod widgets_publish;
 mod publish;
 mod summary;
 mod wire;

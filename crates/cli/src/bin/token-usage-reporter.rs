@@ -77,10 +77,10 @@ enum Command {
         #[arg(long)]
         interval: Option<u64>,
     },
-    /// Push the local store to a directory or a GitHub gist (`gh`).
+    /// Push the local store to a directory or a GitHub gist (`gh`), or to the widget service.
     Publish {
         /// Directory to write (commit this, or host it on GitHub Pages).
-        #[arg(long, conflicts_with = "gist")]
+        #[arg(long, conflicts_with = "gist", conflicts_with = "widgets")]
         dir: Option<PathBuf>,
         /// Gist id to update. Pass `--gist` alone to create or reuse `github.json`.
         #[arg(long, num_args = 0..=1, default_missing_value = "")]
@@ -88,9 +88,12 @@ enum Command {
         /// Omit `usage.jsonl` (summary + badge only). Use for a public gist or repo.
         #[arg(long)]
         public: bool,
-        /// Public base URL of the published files (GitHub Pages, raw gist, …).
+        /// Public base URL of the published files (GitHub Pages, raw gist, widget service, …).
         #[arg(long)]
         url: Option<String>,
+        /// Publish the summary to the widgets.mintychochip.dev service.
+        #[arg(long, conflicts_with = "dir", conflicts_with = "gist")]
+        widgets: bool,
     },
     /// Import sessions from a published directory or gist into the local store.
     Pull {
@@ -275,7 +278,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             gist,
             public,
             url,
+            widgets,
         } => {
+            if widgets {
+                let prices = token_usage_cli::load_price_table(&store_path);
+                let service_url = url.as_deref().unwrap_or("https://widgets.mintychochip.dev");
+                let widget_url = token_usage_cli::widgets_publish::publish_to_widgets(
+                    &store,
+                    service_url,
+                    prices.as_ref(),
+                )?;
+                println!("{widget_url}");
+                return Ok(());
+            }
             let bundle = bundle_from_store(&store, unix_now())?;
             if let Some(dir) = dir {
                 write_bundle(&dir, &bundle, !public)?;
