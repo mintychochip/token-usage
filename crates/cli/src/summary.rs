@@ -158,7 +158,9 @@ fn model_totals(observations: &[&UsageObservation]) -> Vec<ModelTotals> {
 fn day_totals(observations: &[&UsageObservation]) -> Vec<DayTotals> {
     let mut rows: Vec<DayTotals> = Vec::new();
     for obs in observations {
-        let Some(at) = obs.recorded_at() else { continue };
+        let Some(at) = obs.recorded_at() else {
+            continue;
+        };
         let day = day_start_utc(at);
         let provider = obs.model().map(provider_from_model);
         if let Some(row) = rows.iter_mut().find(|row| row.day == day) {

@@ -81,10 +81,7 @@ pub fn verify_publish_body(body: &Value) -> Result<(String, Value), String> {
         .ok_or("missing uuid")?
         .to_string();
 
-    let summary = signed
-        .get("summary")
-        .cloned()
-        .ok_or("missing summary")?;
+    let summary = signed.get("summary").cloned().ok_or("missing summary")?;
 
     let public_key_b64 = signed
         .get("public_key")
