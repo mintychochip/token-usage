@@ -20,9 +20,18 @@ pub struct HarnessTotals {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelTotals {
     pub model: String,
+    /// Provider derived from the model id (e.g. `openai-codex`).
+    pub provider: String,
     pub sessions: u64,
     pub input_tokens: u64,
     pub output_tokens: u64,
+}
+
+/// Token totals for one provider on one UTC calendar day.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProviderDayTotals {
+    pub provider: String,
+    pub input_tokens: u64,
 }
 
 /// Token totals for one UTC calendar day.
@@ -32,6 +41,9 @@ pub struct DayTotals {
     pub day: u64,
     pub input_tokens: u64,
     pub output_tokens: u64,
+    /// Per-provider breakdown for stacked chart bars. Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub providers: Vec<ProviderDayTotals>,
 }
 
 /// Public snapshot someone can commit, gist, or chart. No session ids.
@@ -123,6 +135,7 @@ fn model_totals(observations: &[&UsageObservation]) -> Vec<ModelTotals> {
     let mut rows: Vec<ModelTotals> = Vec::new();
     for obs in observations {
         let Some(model) = obs.model() else { continue };
+        let provider = provider_from_model(model);
         if let Some(row) = rows.iter_mut().find(|row| row.model == model) {
             row.sessions += 1;
             row.input_tokens += obs.counts().input_tokens();
@@ -130,6 +143,7 @@ fn model_totals(observations: &[&UsageObservation]) -> Vec<ModelTotals> {
         } else {
             rows.push(ModelTotals {
                 model: model.to_string(),
+                provider,
                 sessions: 1,
                 input_tokens: obs.counts().input_tokens(),
                 output_tokens: obs.counts().output_tokens(),
@@ -140,25 +154,64 @@ fn model_totals(observations: &[&UsageObservation]) -> Vec<ModelTotals> {
     rows
 }
 
-/// Roll up totals per UTC calendar day, oldest first.
+/// Roll up totals per UTC calendar day, oldest first, with per-provider segments.
 fn day_totals(observations: &[&UsageObservation]) -> Vec<DayTotals> {
     let mut rows: Vec<DayTotals> = Vec::new();
     for obs in observations {
         let Some(at) = obs.recorded_at() else { continue };
         let day = day_start_utc(at);
+        let provider = obs.model().map(provider_from_model);
         if let Some(row) = rows.iter_mut().find(|row| row.day == day) {
             row.input_tokens += obs.counts().input_tokens();
             row.output_tokens += obs.counts().output_tokens();
+            if let Some(provider) = provider {
+                if let Some(p) = row.providers.iter_mut().find(|p| p.provider == provider) {
+                    p.input_tokens += obs.counts().input_tokens();
+                } else {
+                    row.providers.push(ProviderDayTotals {
+                        provider,
+                        input_tokens: obs.counts().input_tokens(),
+                    });
+                }
+            }
         } else {
+            let providers = provider
+                .map(|provider| {
+                    vec![ProviderDayTotals {
+                        provider,
+                        input_tokens: obs.counts().input_tokens(),
+                    }]
+                })
+                .unwrap_or_default();
             rows.push(DayTotals {
                 day,
                 input_tokens: obs.counts().input_tokens(),
                 output_tokens: obs.counts().output_tokens(),
+                providers,
             });
         }
     }
     rows.sort_by_key(|row| row.day);
     rows
+}
+
+/// Derve a provider label from a model id.
+///
+/// `openai-codex/gpt-5.6-luna` -> `openai-codex`, `grok-4.5` -> `grok`,
+/// `anthropic/claude-opus-5` -> `anthropic`.
+fn provider_from_model(model: &str) -> String {
+    let first = model.split('/').next().unwrap_or(model);
+    // Strip a trailing version-ish suffix like `-4.5` or `-v3`.
+    let base = first
+        .split('-')
+        .take_while(|part| !part.chars().next().map_or(false, |c| c.is_ascii_digit()))
+        .collect::<Vec<_>>()
+        .join("-");
+    if base.is_empty() {
+        first.to_string()
+    } else {
+        base
+    }
 }
 
 /// Floor a Unix timestamp to the start of its UTC calendar day.
