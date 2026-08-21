@@ -259,7 +259,7 @@ fn dir_lock_path(store: &FileStore) -> std::path::PathBuf {
 #[test]
 fn ingest_blocks_while_another_process_holds_the_store_lock() {
     let (_dir, store) = open_store();
-    let mut guard = std::fs::OpenOptions::new()
+    let guard = std::fs::OpenOptions::new()
         .create(true)
         .write(true)
         .truncate(false)
@@ -284,7 +284,7 @@ fn ingest_blocks_while_another_process_holds_the_store_lock() {
         !handle.is_finished(),
         "ingest must block while the lock file is held by another writer"
     );
-    fs4::fs_std::FileExt::unlock(&mut guard).unwrap();
+    fs4::fs_std::FileExt::unlock(&guard).unwrap();
     handle.join().unwrap();
 }
 
