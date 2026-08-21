@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -39,26 +39,32 @@ jobs:
             os: ubuntu-latest
             format: tar.gz
             use_cross: false
+            can_run: true
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             format: tar.gz
             use_cross: true
+            can_run: false
           - target: x86_64-apple-darwin
             os: macos-latest
             format: tar.gz
             use_cross: false
+            can_run: false
           - target: aarch64-apple-darwin
             os: macos-latest
             format: tar.gz
             use_cross: false
+            can_run: false
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             format: zip
             use_cross: false
+            can_run: true
           - target: aarch64-pc-windows-msvc
             os: windows-latest
             format: zip
             use_cross: false
+            can_run: false
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -92,6 +98,23 @@ jobs:
             cross build --release --target "${{ matrix.target }}" -p toktally-cli --bins
           else
             cargo build --release --target "${{ matrix.target }}" -p toktally-cli --bins
+          fi
+
+      - name: Smoke-test release binaries
+        shell: bash
+        run: |
+          release_dir="target/${{ matrix.target }}/release"
+          cli="${release_dir}/toktally"
+          api="${release_dir}/toktally-api"
+          if [[ "${{ matrix.format }}" == "zip" ]]; then
+            cli="${cli}.exe"
+            api="${api}.exe"
+          fi
+          test -f "${cli}"
+          test -f "${api}"
+          if [[ "${{ matrix.can_run }}" == "true" ]]; then
+            "${cli}" --version
+            "${api}" --version
           fi
 
       - name: Package release archive (Unix)
@@ -131,6 +154,8 @@ jobs:
       - compute-version
       - build-matrix
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download release archives
         uses: actions/download-artifact@v4
