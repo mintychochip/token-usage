@@ -334,3 +334,41 @@ fn reads_work_on_a_brand_new_store_without_a_sidecar() {
     assert_eq!(store.list().unwrap().len(), 0);
     assert!(store.needs_first_sync(Harness::Pi).unwrap());
 }
+
+#[test]
+fn reingest_without_metadata_preserves_stored_model_and_recorded_at() {
+    let (_dir, store) = open_store();
+    let rich = observation(
+        Harness::Pi,
+        "meta-sess",
+        100,
+        20,
+        ObservationSource::PluginReport,
+        SessionStoreCompleteness::Complete,
+    )
+    .with_recorded_at(1_700_000_000)
+    .with_model("pi/gpt-9");
+    store.ingest(rich).unwrap();
+
+    let bare = observation(
+        Harness::Pi,
+        "meta-sess",
+        150,
+        30,
+        ObservationSource::PluginReport,
+        SessionStoreCompleteness::Complete,
+    );
+    store.ingest(bare).unwrap();
+
+    let loaded = store
+        .get(&identity(Harness::Pi, "meta-sess"))
+        .unwrap()
+        .expect("stored");
+    assert_eq!(
+        loaded.counts().input_tokens(),
+        150,
+        "totals still take the newest value"
+    );
+    assert_eq!(loaded.model(), Some("pi/gpt-9"));
+    assert_eq!(loaded.recorded_at(), Some(1_700_000_000));
+}
