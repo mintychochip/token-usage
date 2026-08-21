@@ -14,7 +14,7 @@ use toktally_cli::{
 };
 use toktally_domain::{Harness, ObservationIdentity, SessionId};
 use toktally_store::FileStore;
-use toktally_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
+use toktally_sync::{enrich_harness_metadata, sync_all, sync_all_needed, sync_harness, SyncRoots};
 
 #[derive(Parser)]
 #[command(
@@ -82,6 +82,12 @@ enum Command {
         /// Re-run the scan every N seconds (includes `{harness}/usage.json` global snapshots).
         #[arg(long)]
         interval: Option<u64>,
+    },
+    /// Fast metadata pass: add model + recorded_at to existing sessions without re-aggregating.
+    Enrich {
+        /// Named harness to enrich (only oh-my-pi currently).
+        #[arg(long)]
+        harness: String,
     },
     /// Push the local store to a directory, a GitHub gist (`gh`), the widget service, or GitHub Pages.
     Publish {
@@ -286,6 +292,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         None => break,
                     }
                 }
+            }
+            Command::Enrich { harness } => {
+                let harness = Harness::parse(&harness)?;
+                let report = enrich_harness_metadata(&store, harness, &roots)?;
+                println!("{}", serde_json::to_string_pretty(&report)?);
             }
             Command::Publish {
                 dir,

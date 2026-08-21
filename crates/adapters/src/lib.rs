@@ -36,7 +36,7 @@ pub fn adapt(harness: Harness, payload: &Value) -> Result<UsageObservation, Adap
         Harness::Cline => adapt_cline(payload)?,
         Harness::Pi => adapt_pi(payload)?,
     };
-    Ok(attach_model(observation, payload))
+    Ok(attach_recorded_at(attach_model(observation, payload), payload))
 }
 
 fn attach_model(observation: UsageObservation, payload: &Value) -> UsageObservation {
@@ -44,6 +44,25 @@ fn attach_model(observation: UsageObservation, payload: &Value) -> UsageObservat
         Some(model) => observation.with_model(model),
         None => observation,
     }
+}
+
+fn attach_recorded_at(observation: UsageObservation, payload: &Value) -> UsageObservation {
+    match extract_recorded_at(payload) {
+        Some(at) => observation.with_recorded_at(at),
+        None => observation,
+    }
+}
+
+fn extract_recorded_at(payload: &Value) -> Option<u64> {
+    payload
+        .get("recordedAt")
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            payload
+                .get("timestamp")
+                .and_then(Value::as_str)
+                .and_then(parse_iso_timestamp)
+        })
 }
 
 fn extract_model(payload: &Value) -> Option<String> {
@@ -451,4 +470,33 @@ fn counts_from(
         tokens_before: first_u64(usage, &["tokens_before", "totalTokensBeforeCompaction"]),
         tokens_after: first_u64(usage, &["tokens_after"]),
     }))
+}
+
+/// Parse an ISO-8601 timestamp (e.g. `2026-07-11T04:53:19.238Z`) to Unix seconds.
+fn parse_iso_timestamp(raw: &str) -> Option<u64> {
+    let raw = raw.trim();
+    let body = raw.strip_suffix('Z').unwrap_or(raw);
+    let (date, time) = body.split_once('T')?;
+    let mut parts = date.split('-');
+    let year: i64 = parts.next()?.parse().ok()?;
+    let month: i64 = parts.next()?.parse().ok()?;
+    let day: i64 = parts.next()?.parse().ok()?;
+    let mut time_parts = time.split(':');
+    let hour: i64 = time_parts.next()?.parse().ok()?;
+    let minute: i64 = time_parts.next()?.parse().ok()?;
+    let sec_raw = time_parts.next()?;
+    let sec: i64 = sec_raw.split('.').next()?.parse().ok()?;
+    Some(ymd_hms_to_unix(year, month, day, hour, minute, sec))
+}
+
+/// Days-from-civil algorithm (Howard Hinnant) -> Unix seconds (UTC).
+fn ymd_hms_to_unix(year: i64, month: i64, day: i64, hour: i64, min: i64, sec: i64) -> u64 {
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (month + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe - 719468;
+    (days * 86400 + hour * 3600 + min * 60 + sec) as u64
 }

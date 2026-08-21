@@ -62,6 +62,7 @@ fn write_bundle_files(dir: &Path, bundle: &PublishBundle, card_js: &str) -> Resu
         .map_err(|e| e.to_string())?;
     std::fs::write(dir.join("usage-badge.json"), &bundle.shields_json)
         .map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("chart.svg"), &bundle.chart_svg).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("token-usage-card.js"), card_js).map_err(|e| e.to_string())?;
 
     let summary_url = "usage-summary.json";

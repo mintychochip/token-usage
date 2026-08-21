@@ -6,6 +6,7 @@ pub mod github_pages;
 pub mod identity;
 pub mod publish_config;
 pub mod widgets_publish;
+mod chart;
 mod publish;
 mod summary;
 mod wire;
@@ -24,6 +25,7 @@ use toktally_domain::{Harness, ObservationIdentity, SessionId};
 use toktally_store::{FileStore, StoreError};
 use toktally_sync::{sync_all, sync_all_needed, sync_harness, SyncRoots};
 
+pub use chart::chart_svg;
 pub use components::{
     gist_raw_base, github_badge_markdown, join_published_url, publish_snippets,
     render_summary_card, website_embed_html, USAGE_CARD_JS,
@@ -34,7 +36,8 @@ pub use publish::{
     save_github_config, write_bundle, GistRef, GithubConfig, PublishBundle,
 };
 pub use summary::{
-    shields_badge, summarize, summarize_priced, HarnessTotals, ShieldsBadge, UsageSummary,
+    shields_badge, summarize, summarize_priced, DayTotals, HarnessTotals, ModelTotals,
+    ShieldsBadge, UsageSummary,
 };
 pub use wire::{
     WireHarnessSync, WireObservation, WireSessionList, WireSyncRequest, WireSyncStatus,

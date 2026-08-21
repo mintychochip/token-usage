@@ -61,6 +61,25 @@ impl FileStore {
         self.ingest_at(observation, unix_now())
     }
 
+    /// Persist many observations in one atomic write. Same-identity entries are
+    /// replaced; new identities are appended. Far cheaper than N `ingest_at` calls.
+    pub fn bulk_ingest(&self, observations: Vec<UsageObservation>) -> Result<(), StoreError> {
+        let _guard = self.lock.lock().expect("store lock");
+        let mut file = self.load()?;
+        for observation in observations {
+            if let Some(existing) = file
+                .sessions
+                .iter_mut()
+                .find(|row| row.identity() == observation.identity())
+            {
+                *existing = observation;
+            } else {
+                file.sessions.push(observation);
+            }
+        }
+        write_atomic(&self.path, &file)
+    }
+
     /// Persist `observation` with an explicit last-synced timestamp.
     pub fn ingest_at(
         &self,
