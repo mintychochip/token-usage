@@ -6,16 +6,25 @@ use std::process::Command;
 
 use tempfile::tempdir;
 
-fn reporter() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_toktally"))
+fn isolated_reporter(dir: &Path) -> Command {
+    let key_dir = dir.join("keys");
+    fs::create_dir_all(&key_dir).unwrap();
+    fs::write(
+        dir.join("publish-config.json"),
+        r#"{"widgets":{"enabled":false,"url":""},"github_pages":{"enabled":false,"repo":""}}"#,
+    )
+    .unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_toktally"));
+    cmd.env("TOKTALLY_IDENTITY_DIR", &key_dir);
+    cmd
 }
 
-fn ingest_hermes(store: &Path, home: &Path) {
+fn ingest_hermes(dir: &Path, store: &Path, home: &Path) {
     let fixture = format!(
         "{}/../adapters/fixtures/hermes-session.json",
         env!("CARGO_MANIFEST_DIR")
     );
-    let out = reporter()
+    let out = isolated_reporter(dir)
         .arg("--store")
         .arg(store)
         .arg("--home")
@@ -137,10 +146,10 @@ fn publish_dir_writes_summary_badge_and_jsonl_then_pull_restores() {
     let store = dir.path().join("store.json");
     let home = dir.path().join("home");
     fs::create_dir_all(&home).unwrap();
-    ingest_hermes(&store, &home);
+    ingest_hermes(dir.path(), &store, &home);
 
     let bundle = dir.path().join("bundle");
-    let publish = reporter()
+    let publish = isolated_reporter(dir.path())
         .arg("--store")
         .arg(&store)
         .arg("--home")
@@ -167,7 +176,7 @@ fn publish_dir_writes_summary_badge_and_jsonl_then_pull_restores() {
     assert!(jsonl.contains("hermes-sess-1"), "{jsonl}");
 
     let other = dir.path().join("other.json");
-    let pull = reporter()
+    let pull = isolated_reporter(dir.path())
         .arg("--store")
         .arg(&other)
         .arg("--home")
@@ -181,7 +190,7 @@ fn publish_dir_writes_summary_badge_and_jsonl_then_pull_restores() {
         "{}",
         String::from_utf8_lossy(&pull.stderr)
     );
-    let get = reporter()
+    let get = isolated_reporter(dir.path())
         .arg("--store")
         .arg(&other)
         .arg("--home")
@@ -201,10 +210,10 @@ fn public_publish_dir_omits_session_jsonl_and_cannot_be_pulled() {
     let store = dir.path().join("store.json");
     let home = dir.path().join("home");
     fs::create_dir_all(&home).unwrap();
-    ingest_hermes(&store, &home);
+    ingest_hermes(dir.path(), &store, &home);
 
     let bundle = dir.path().join("public");
-    let publish = reporter()
+    let publish = isolated_reporter(dir.path())
         .arg("--store")
         .arg(&store)
         .arg("--home")
@@ -226,7 +235,7 @@ fn public_publish_dir_omits_session_jsonl_and_cannot_be_pulled() {
     );
 
     let other = dir.path().join("other.json");
-    let pull = reporter()
+    let pull = isolated_reporter(dir.path())
         .arg("--store")
         .arg(&other)
         .arg("--home")
@@ -243,19 +252,20 @@ fn public_publish_dir_omits_session_jsonl_and_cannot_be_pulled() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn gist_publish_remembers_id_edits_on_second_push_and_pulls_back() {
     let dir = tempdir().unwrap();
     let store = dir.path().join("store.json");
     let home = dir.path().join("home");
     fs::create_dir_all(&home).unwrap();
-    ingest_hermes(&store, &home);
+    ingest_hermes(dir.path(), &store, &home);
 
     let gh_state = dir.path().join("gh");
     fs::create_dir_all(&gh_state).unwrap();
     let fake_gh = write_fake_gh(dir.path());
 
-    let publish = reporter()
+    let publish = isolated_reporter(dir.path())
         .env("TOKEN_USAGE_GH", &fake_gh)
         .env("FAKE_GH_STATE", &gh_state)
         .arg("--store")
@@ -279,7 +289,7 @@ fn gist_publish_remembers_id_edits_on_second_push_and_pulls_back() {
         "secret gist should include sessions"
     );
 
-    let again = reporter()
+    let again = isolated_reporter(dir.path())
         .env("TOKEN_USAGE_GH", &fake_gh)
         .env("FAKE_GH_STATE", &gh_state)
         .arg("--store")
@@ -303,7 +313,7 @@ fn gist_publish_remembers_id_edits_on_second_push_and_pulls_back() {
     );
 
     let other = dir.path().join("other.json");
-    let pull = reporter()
+    let pull = isolated_reporter(dir.path())
         .env("TOKEN_USAGE_GH", &fake_gh)
         .env("FAKE_GH_STATE", &gh_state)
         .arg("--store")
@@ -318,7 +328,7 @@ fn gist_publish_remembers_id_edits_on_second_push_and_pulls_back() {
         "{}",
         String::from_utf8_lossy(&pull.stderr)
     );
-    let get = reporter()
+    let get = isolated_reporter(dir.path())
         .arg("--store")
         .arg(&other)
         .arg("--home")
@@ -331,19 +341,20 @@ fn gist_publish_remembers_id_edits_on_second_push_and_pulls_back() {
     assert!(body.contains("18000"), "{body}");
 }
 
+#[cfg(unix)]
 #[test]
 fn public_gist_omits_jsonl() {
     let dir = tempdir().unwrap();
     let store = dir.path().join("store.json");
     let home = dir.path().join("home");
     fs::create_dir_all(&home).unwrap();
-    ingest_hermes(&store, &home);
+    ingest_hermes(dir.path(), &store, &home);
 
     let gh_state = dir.path().join("gh");
     fs::create_dir_all(&gh_state).unwrap();
     let fake_gh = write_fake_gh(dir.path());
 
-    let publish = reporter()
+    let publish = isolated_reporter(dir.path())
         .env("TOKEN_USAGE_GH", &fake_gh)
         .env("FAKE_GH_STATE", &gh_state)
         .arg("--store")
@@ -365,19 +376,20 @@ fn public_gist_omits_jsonl() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn gist_publish_snippets_use_raw_githubusercontent_url_and_inline_js() {
     let dir = tempdir().unwrap();
     let store = dir.path().join("store.json");
     let home = dir.path().join("home");
     fs::create_dir_all(&home).unwrap();
-    ingest_hermes(&store, &home);
+    ingest_hermes(dir.path(), &store, &home);
 
     let gh_state = dir.path().join("gh");
     fs::create_dir_all(&gh_state).unwrap();
     let fake_gh = write_fake_gh(dir.path());
 
-    let publish = reporter()
+    let publish = isolated_reporter(dir.path())
         .env("TOKEN_USAGE_GH", &fake_gh)
         .env("FAKE_GH_STATE", &gh_state)
         .arg("--store")
@@ -425,11 +437,11 @@ fn publish_dir_prints_github_and_website_snippets_twice() {
     let store = dir.path().join("store.json");
     let home = dir.path().join("home");
     fs::create_dir_all(&home).unwrap();
-    ingest_hermes(&store, &home);
+    ingest_hermes(dir.path(), &store, &home);
     let bundle = dir.path().join("bundle");
     let base = "https://example.com/usage";
     for _ in 0..2 {
-        let publish = reporter()
+        let publish = isolated_reporter(dir.path())
             .arg("--store")
             .arg(&store)
             .arg("--home")

@@ -107,8 +107,8 @@ pub fn verify_json(value: &Value, public_key: &[u8], signature: &[u8]) -> Result
         .try_into()
         .map_err(|_| "identity public key has wrong length".to_string())?;
 
-    let verifying_key = VerifyingKey::from_bytes(public_array)
-        .map_err(|e| format!("invalid public key: {e}"))?;
+    let verifying_key =
+        VerifyingKey::from_bytes(public_array).map_err(|e| format!("invalid public key: {e}"))?;
 
     let sig_array: &[u8; 64] = signature
         .try_into()
@@ -131,8 +131,7 @@ pub fn uuid_from_public_key(public_key: &[u8]) -> String {
         u16::from_be_bytes([b[4], b[5]]),
         u16::from_be_bytes([b[6], b[7]]),
         u16::from_be_bytes([b[8], b[9]]),
-        u64::from_be_bytes([b[10], b[11], b[12], b[13], b[14], b[15], 0, 0])
-            & 0x0000ffffffffffff,
+        u64::from_be_bytes([b[10], b[11], b[12], b[13], b[14], b[15], 0, 0]) & 0x0000ffffffffffff,
     )
 }
 

@@ -1,6 +1,4 @@
-use std::path::PathBuf;
-
-use toktally_cli::publish_config::{default_config_path, load_or_create, save, PublishConfig};
+use toktally_cli::publish_config::{load_or_create, save};
 
 #[test]
 fn publish_config_defaults_and_round_trip() {
