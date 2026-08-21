@@ -159,3 +159,25 @@ fn first_use_syncs_only_harnesses_that_have_never_been_scanned() {
     assert_eq!(store.harness_last_synced(Harness::Grok).unwrap(), Some(1));
     assert_eq!(store.harness_last_synced(Harness::Pi).unwrap(), Some(2));
 }
+
+#[test]
+fn sync_harness_leaves_needs_first_sync_true_when_every_payload_fails_adaptation() {
+    let home = tempdir().unwrap();
+    let sess = home.path().join(".grok/sessions/proj/sess-poison");
+    std::fs::create_dir_all(&sess).unwrap();
+    std::fs::write(sess.join("signals.json"), r#"{"boom": true}"#).unwrap();
+
+    let dir = tempfile::tempdir().unwrap();
+    let store = FileStore::open(dir.path().join("store.json")).unwrap();
+    let roots = SyncRoots {
+        home: home.path().to_path_buf(),
+    };
+
+    let report = sync_harness(&store, Harness::Grok, &roots, 42).unwrap();
+    assert_eq!(report.ingested, 0);
+    assert_eq!(report.skipped, 1);
+    assert!(
+        store.needs_first_sync(Harness::Grok).unwrap(),
+        "failed scans must not permanently blackhole the harness"
+    );
+}

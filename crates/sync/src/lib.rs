@@ -72,7 +72,11 @@ pub fn sync_harness(
             Err(_) => skipped += 1,
         }
     }
-    store.record_harness_sync(harness, last_synced_at)?;
+    // Record progress only when something was ingested or nothing failed;
+    // a fully-failed scan must remain retryable.
+    if ingested > 0 || skipped == 0 {
+        store.record_harness_sync(harness, last_synced_at)?;
+    }
     Ok(SyncReport {
         harness,
         ingested,
