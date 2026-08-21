@@ -29,7 +29,9 @@ token-usage-domain.workspace = true
 token-usage-store.workspace = true
 token-usage-sync.workspace = true
 ureq.workspace = true
-
+blake3 = "1.5.1"
+ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
+rand = "0.8.5"
 [dev-dependencies]
 http-body-util.workspace = true
 tempfile.workspace = true
