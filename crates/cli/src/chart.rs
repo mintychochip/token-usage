@@ -2,165 +2,300 @@
 //!
 //! GitHub READMEs strip JavaScript, so the chart is rendered server-side as
 //! inline SVG and embedded via `<img src="chart.svg">`. Bars are stacked by
-//! provider, colored from the mintychochip.dev palette.
+//! provider. The background stays transparent and text/grid colors flip with
+//! `prefers-color-scheme`, so one file reads correctly on both GitHub themes.
 
 use crate::summary::UsageSummary;
 
-const WIDTH: u32 = 720;
-const HEIGHT: u32 = 280;
-const PAD_LEFT: u32 = 56;
-const PAD_RIGHT: u32 = 16;
-const PAD_TOP: u32 = 30;
-const PAD_BOTTOM: u32 = 40;
-const PLOT_W: u32 = WIDTH - PAD_LEFT - PAD_RIGHT;
-const PLOT_H: u32 = HEIGHT - PAD_TOP - PAD_BOTTOM;
+const WIDTH: i64 = 720;
+const PAD_LEFT: i64 = 52;
+const PAD_RIGHT: i64 = 16;
+const PAD_TOP: i64 = 44;
+const PLOT_H: i64 = 168;
+const PLOT_W: i64 = WIDTH - PAD_LEFT - PAD_RIGHT;
+const BASELINE: i64 = PAD_TOP + PLOT_H;
+const LABEL_Y: i64 = BASELINE + 16;
+const LEGEND_Y: i64 = BASELINE + 42;
+const HEIGHT: i64 = LEGEND_Y + 12;
 
-/// mintychochip.dev chart palette, assigned to providers in order of total usage.
-const PALETTE: [&str; 8] = [
-    "#1E61B8", "#2DC2D2", "#25A3B1", "#983D16", "#921C33", "#7C2489", "#184E95", "#1E848F",
+/// Recognisable colors for known providers. Matched as a substring of the
+/// lowercased provider id, so `azure-openai` still reads as OpenAI.
+const BRAND: [(&str, &str); 15] = [
+    ("anthropic", "#D97757"),
+    ("claude", "#D97757"),
+    ("openai", "#10A37F"),
+    ("codex", "#10A37F"),
+    ("google", "#4285F4"),
+    ("gemini", "#4285F4"),
+    ("xai", "#A855F7"),
+    ("grok", "#A855F7"),
+    ("meta", "#0866FF"),
+    ("llama", "#0866FF"),
+    ("mistral", "#FF7000"),
+    ("deepseek", "#4D6BFE"),
+    ("qwen", "#615CED"),
+    ("cohere", "#39594D"),
+    ("moonshot", "#16C79A"),
+];
+
+/// Assigned in usage order to providers with no brand color, so two providers
+/// never share a swatch (the old name hash collided).
+const FALLBACK: [&str; 8] = [
+    "#3B82F6", "#F59E0B", "#10B981", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316",
 ];
 
 const FONT_SANS: &str = "&quot;Geist Sans&quot;, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif";
-const BG: &str = "#121212";
-const GRID: &str = "#2a2a2a";
-const TEXT: &str = "#ededed";
-const MUTED: &str = "#737373";
+
+/// Theme-aware styles. GitHub renders the file as an image, so the browser
+/// applies these rules and the media query follows the reader's theme.
+fn style_block() -> String {
+    format!(
+        r#"<style>
+    text {{ font-family: {FONT_SANS}; }}
+    .t-title {{ font-size: 14px; font-weight: 600; fill: #1f2328; }}
+    .t-sub {{ font-size: 12px; fill: #59636e; }}
+    .t-tick {{ font-size: 10px; fill: #818b98; }}
+    .t-grid {{ stroke: #d1d9e0; stroke-width: 1; shape-rendering: crispEdges; }}
+    .t-axis {{ stroke: #b7bfc7; stroke-width: 1; shape-rendering: crispEdges; }}
+    @media (prefers-color-scheme: dark) {{
+      .t-title {{ fill: #f0f6fc; }}
+      .t-sub {{ fill: #9198a1; }}
+      .t-tick {{ fill: #7d8590; }}
+      .t-grid {{ stroke: #2a313c; }}
+      .t-axis {{ stroke: #3d444d; }}
+    }}
+  </style>"#
+    )
+}
 
 /// Render a daily stacked-provider token bar chart as an SVG string.
 pub fn chart_svg(summary: &UsageSummary) -> String {
     let days = &summary.days;
-    let max_tokens = days
+    let style = style_block();
+    let header = header_markup(summary);
+
+    if days.is_empty() {
+        return format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{PAD_TOP}" viewBox="0 0 {WIDTH} {PAD_TOP}" role="img" aria-label="toktally token usage">
+  {style}
+{header}
+</svg>"##
+        );
+    }
+
+    let order = provider_order(summary);
+    let colors = assign_colors(&order);
+
+    let peak = days
         .iter()
         .map(|d| d.input_tokens)
         .max()
         .unwrap_or(1)
         .max(1);
-    let n = days.len().max(1);
-    let slot = PLOT_W / n as u32;
-    let bar_w = (slot as f32 * 0.62).max(2.0) as u32;
+    let (step, ticks) = nice_scale(peak, 4);
+    let max = (step * ticks) as f64;
 
-    // Assign palette colors to providers by total usage across all days.
-    let mut provider_order: Vec<String> = Vec::new();
-    for day in days {
-        for p in &day.providers {
-            if !provider_order.contains(&p.provider) {
-                provider_order.push(p.provider.clone());
-            }
-        }
+    let mut grid = String::new();
+    for i in 0..=ticks {
+        let y = BASELINE as f64 - (PLOT_H as f64 * i as f64) / ticks as f64;
+        grid.push_str(&format!(
+            "<line class=\"t-grid\" x1=\"{PAD_LEFT}\" y1=\"{y:.1}\" x2=\"{}\" y2=\"{y:.1}\"/>",
+            WIDTH - PAD_RIGHT
+        ));
+        grid.push_str(&format!(
+            "<text class=\"t-tick\" x=\"{}\" y=\"{:.1}\" text-anchor=\"end\">{}</text>",
+            PAD_LEFT - 8,
+            y + 3.0,
+            compact(step * i)
+        ));
     }
-    // Order providers by total input tokens descending.
-    let mut totals: Vec<(&str, u64)> = provider_order
-        .iter()
-        .map(|name| {
-            let total: u64 = days
-                .iter()
-                .flat_map(|d| &d.providers)
-                .filter(|p| &p.provider == name)
-                .map(|p| p.input_tokens)
-                .sum();
-            (name.as_str(), total)
-        })
-        .collect();
-    totals.sort_by(|a, b| b.1.cmp(&a.1));
+
+    let slot = PLOT_W as f64 / days.len() as f64;
+    let bar_w = (slot * 0.64).clamp(2.0, 22.0);
+    // Keep ~54px between date labels, anchored to the newest day.
+    let per_label = (PLOT_W / 54).max(1) as usize;
+    let stride = days.len().div_ceil(per_label).max(1);
 
     let mut bars = String::new();
     let mut labels = String::new();
-    let mut legend = String::new();
     for (i, day) in days.iter().enumerate() {
-        let x = PAD_LEFT + (i as u32) * slot;
-        let cx = x + slot / 2;
-        // Stack provider segments bottom-up.
-        let mut y = PAD_TOP + PLOT_H;
-        for (name, _) in &totals {
-            let name: &str = name;
-            let Some(seg) = day.providers.iter().find(|p| p.provider == name) else {
+        let cx = PAD_LEFT as f64 + i as f64 * slot + slot / 2.0;
+        let mut y = BASELINE as f64;
+        for name in &order {
+            let Some(seg) = day.providers.iter().find(|p| &p.provider == name) else {
                 continue;
             };
-            let h = ((seg.input_tokens as f64 / max_tokens as f64) * PLOT_H as f64) as u32;
-            if h == 0 {
+            let h = (seg.input_tokens as f64 / max) * PLOT_H as f64;
+            if h < 0.5 {
                 continue;
             }
-            let color = palette_color(name);
-            let top = y - h;
+            y -= h;
             bars.push_str(&format!(
-                "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" rx=\"1\" fill=\"{}\"/>",
-                cx - bar_w / 2,
-                top,
+                "<rect x=\"{:.1}\" y=\"{:.1}\" width=\"{:.1}\" height=\"{:.1}\" rx=\"1.5\" fill=\"{}\"/>",
+                cx - bar_w / 2.0,
+                y,
                 bar_w,
                 h,
-                color
+                colors[name]
             ));
-            y = top;
         }
-        if n <= 31 || i % 5 == 0 {
+        if (days.len() - 1 - i).is_multiple_of(stride) {
             labels.push_str(&format!(
-                "<text x=\"{}\" y=\"{}\" text-anchor=\"middle\" font-size=\"11\" fill=\"{}\" font-family=\"{}\">{}</text>",
-                cx,
-                PAD_TOP + PLOT_H + 18,
-                MUTED,
-                FONT_SANS,
-                day_label(day.day)
+                "<text class=\"t-tick\" x=\"{cx:.1}\" y=\"{LABEL_Y}\" text-anchor=\"middle\">{}</text>",
+                escape_text(&day_label(day.day))
             ));
         }
     }
 
-    // Legend: top 8 providers with their colors.
-    for (idx, (name, _)) in totals.iter().take(8).enumerate() {
-        let lx = PAD_LEFT + (idx as u32 % 4) * 170;
-        let ly = HEIGHT - 10 - (idx as u32 / 4) * 18;
-        let color = palette_color(name);
-        legend.push_str(&format!(
-            "<rect x=\"{}\" y=\"{}\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{}\"/>",
-            lx, ly - 9, color
-        ));
-        legend.push_str(&format!(
-            "<text x=\"{}\" y=\"{}\" font-size=\"11\" fill=\"{}\" font-family=\"{}\">{}</text>",
-            lx + 14,
-            ly,
-            MUTED,
-            FONT_SANS,
-            escape_text(name)
-        ));
-    }
+    let legend = legend_markup(&order, &colors);
 
-    let total = summary.input_tokens;
-    let total_label = compact(total);
-    let baseline = PAD_TOP + PLOT_H;
-    let right = WIDTH - PAD_RIGHT;
     format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-label="toktally token usage">
-  <rect width="100%" height="100%" fill="{BG}"/>
-  <text x="{PAD_LEFT}" y="20" font-size="14" font-weight="600" fill="{TEXT}" font-family="{FONT_SANS}">toktally · {total_label} tokens in</text>
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-label="toktally daily input tokens by provider">
+  {style}
+{header}
+  <g>{grid}</g>
   <g>{bars}</g>
   <g>{labels}</g>
-  <line x1="{PAD_LEFT}" y1="{PAD_TOP}" x2="{PAD_LEFT}" y2="{baseline}" stroke="{GRID}"/>
-  <line x1="{PAD_LEFT}" y1="{baseline}" x2="{right}" y2="{baseline}" stroke="{GRID}"/>
+  <line class="t-axis" x1="{PAD_LEFT}" y1="{BASELINE}" x2="{}" y2="{BASELINE}"/>
   <g>{legend}</g>
-</svg>"##
+</svg>"##,
+        WIDTH - PAD_RIGHT
     )
 }
 
-/// Pick a palette color for a provider, stable by name.
-fn palette_color(provider: &str) -> &'static str {
-    // Stable hash so a provider always maps to the same color across renders.
-    let mut h: u32 = 2166136261;
-    for b in provider.bytes() {
-        h ^= b as u32;
-        h = h.wrapping_mul(16777619);
+fn header_markup(summary: &UsageSummary) -> String {
+    let mut sub = format!(
+        "{} in · {} out",
+        compact(summary.input_tokens),
+        compact(summary.output_tokens)
+    );
+    if let Some(cost) = summary.estimated_cost_usd {
+        sub.push_str(&format!(" · ~{}", money(cost)));
     }
-    PALETTE[(h as usize) % PALETTE.len()]
+    format!(
+        "  <text class=\"t-title\" x=\"{PAD_LEFT}\" y=\"20\">toktally</text>\n  \
+         <text class=\"t-sub\" x=\"{}\" y=\"20\" text-anchor=\"end\">{}</text>",
+        WIDTH - PAD_RIGHT,
+        escape_text(&sub)
+    )
 }
 
-/// Compact a token count to `12.3M` / `456k`.
+fn legend_markup(order: &[String], colors: &std::collections::HashMap<String, String>) -> String {
+    let mut out = String::new();
+    let mut x = PAD_LEFT;
+    for name in order.iter().take(8) {
+        // 11px sans averages ~6.2px per character; enough to avoid overlap.
+        let width = 14 + (name.chars().count() as f64 * 6.2).ceil() as i64 + 18;
+        if x + width > WIDTH - PAD_RIGHT {
+            break;
+        }
+        out.push_str(&format!(
+            "<rect x=\"{x}\" y=\"{}\" width=\"9\" height=\"9\" rx=\"2\" fill=\"{}\"/>",
+            LEGEND_Y - 8,
+            colors[name]
+        ));
+        out.push_str(&format!(
+            "<text class=\"t-tick\" x=\"{}\" y=\"{LEGEND_Y}\">{}</text>",
+            x + 14,
+            escape_text(name)
+        ));
+        x += width;
+    }
+    out
+}
+
+/// Providers present in the summary, most-used first.
+fn provider_order(summary: &UsageSummary) -> Vec<String> {
+    let mut totals: Vec<(String, u64)> = Vec::new();
+    for day in &summary.days {
+        for p in &day.providers {
+            match totals.iter_mut().find(|(name, _)| name == &p.provider) {
+                Some(entry) => entry.1 += p.input_tokens,
+                None => totals.push((p.provider.clone(), p.input_tokens)),
+            }
+        }
+    }
+    totals.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    totals.into_iter().map(|(name, _)| name).collect()
+}
+
+/// Brand color when we recognise the provider, otherwise the next unused
+/// fallback. Deterministic for a given provider set and collision-free.
+fn assign_colors(order: &[String]) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    let mut used = std::collections::HashSet::new();
+    let mut next = 0usize;
+    for (index, name) in order.iter().enumerate() {
+        let key = name.to_ascii_lowercase();
+        let brand = BRAND
+            .iter()
+            .find(|(needle, _)| key.contains(needle))
+            .map(|(_, color)| (*color).to_string())
+            .filter(|color| !used.contains(color));
+        let color = brand.unwrap_or_else(|| {
+            while next < FALLBACK.len() && used.contains(FALLBACK[next]) {
+                next += 1;
+            }
+            if next < FALLBACK.len() {
+                let color = FALLBACK[next].to_string();
+                next += 1;
+                color
+            } else {
+                let hue = (index as f64 * 137.508) % 360.0;
+                format!("hsl({hue:.1},65%,55%)")
+            }
+        });
+        used.insert(color.clone());
+        map.insert(name.clone(), color);
+    }
+    map
+}
+
+/// Pick a `1/2/5 x 10^n` gridline interval so every tick label is round.
+/// Returns the interval and how many of them cover `peak`.
+fn nice_scale(peak: u64, target: u64) -> (u64, u64) {
+    if peak == 0 {
+        return (1, 1);
+    }
+    let raw = peak as f64 / target.max(1) as f64;
+    let exp = 10f64.powf(raw.log10().floor());
+    let f = raw / exp;
+    let mult = if f <= 1.0 {
+        1.0
+    } else if f <= 2.0 {
+        2.0
+    } else if f <= 5.0 {
+        5.0
+    } else {
+        10.0
+    };
+    let step = ((mult * exp) as u64).max(1);
+    (step, peak.div_ceil(step).max(1))
+}
+
+/// Compact a token count to `12.3M` / `456k`, dropping a trailing `.0`.
 fn compact(n: u64) -> String {
+    fn trim(v: f64, suffix: &str) -> String {
+        let s = format!("{v:.1}");
+        format!("{}{suffix}", s.strip_suffix(".0").unwrap_or(&s))
+    }
     if n >= 1_000_000_000 {
-        format!("{:.1}B", n as f64 / 1_000_000_000.0)
+        trim(n as f64 / 1_000_000_000.0, "B")
     } else if n >= 1_000_000 {
-        format!("{:.1}M", n as f64 / 1_000_000.0)
+        trim(n as f64 / 1_000_000.0, "M")
     } else if n >= 1_000 {
-        format!("{:.1}k", n as f64 / 1_000.0)
+        trim(n as f64 / 1_000.0, "k")
     } else {
         n.to_string()
+    }
+}
+
+/// Format an estimated cost with cents, or four places below a dollar.
+fn money(v: f64) -> String {
+    if v >= 1.0 {
+        format!("${v:.2}")
+    } else {
+        format!("${v:.4}")
     }
 }
 

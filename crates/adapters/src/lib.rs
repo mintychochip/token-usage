@@ -36,7 +36,10 @@ pub fn adapt(harness: Harness, payload: &Value) -> Result<UsageObservation, Adap
         Harness::Cline => adapt_cline(payload)?,
         Harness::Pi => adapt_pi(payload)?,
     };
-    Ok(attach_recorded_at(attach_model(observation, payload), payload))
+    Ok(attach_recorded_at(
+        attach_model(observation, payload),
+        payload,
+    ))
 }
 
 fn attach_model(observation: UsageObservation, payload: &Value) -> UsageObservation {

@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn ingest_fixture(store: &Path, home: &Path) {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../adapters/fixtures/oh-my-pi-session.json");
+    let fixture =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../adapters/fixtures/oh-my-pi-session.json");
     fs::create_dir_all(home).unwrap();
     let out = Command::new(env!("CARGO_BIN_EXE_toktally"))
         .env("TOKEN_USAGE_STORE", store)
@@ -15,17 +15,18 @@ fn ingest_fixture(store: &Path, home: &Path) {
         .arg(&fixture)
         .output()
         .unwrap();
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
-fn write_fake_gh(dir: &Path, state: &Path) -> PathBuf {
-    let script = dir.join("fake-gh");
-    let py = format!(
-        r#"#!/usr/bin/env python3
-import os, shutil, sys
+fn write_fake_gh(dir: &Path) -> PathBuf {
+    let py = r#"import os, shutil, sys
 from pathlib import Path
 
-state = Path("{state}")
+state = Path(os.environ["FAKE_GH_STATE"])
 state.mkdir(parents=True, exist_ok=True)
 
 args = sys.argv[1:]
@@ -67,18 +68,38 @@ if args[:2] == ["repo", "clone"]:
 
 print("unexpected fake-gh invocation: " + " ".join(args), file=sys.stderr)
 sys.exit(2)
-"#,
-        state = state.display()
-    );
-    fs::write(&script, py).unwrap();
+"#;
+
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+        let script = dir.join("fake-gh");
+        fs::write(&script, format!("#!/usr/bin/env python3\n{py}")).unwrap();
         let mut perms = fs::metadata(&script).unwrap().permissions();
         perms.set_mode(0o755);
         fs::set_permissions(&script, perms).unwrap();
+        script
     }
-    script
+
+    #[cfg(windows)]
+    {
+        let py_script = dir.join("fake-gh.py");
+        fs::write(&py_script, py).unwrap();
+        let cmd_script = dir.join("fake-gh.cmd");
+        fs::write(
+            &cmd_script,
+            "@echo off\r\npython \"%~dp0fake-gh.py\" %*\r\n",
+        )
+        .unwrap();
+        cmd_script
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let script = dir.join("fake-gh");
+        fs::write(&script, py).unwrap();
+        script
+    }
 }
 
 fn write_fake_git(dir: &Path) -> PathBuf {
@@ -151,7 +172,7 @@ fn github_pages_publishes_bundle_on_first_run() {
 
     let gh_state = dir.path().join("gh");
     fs::create_dir_all(&gh_state).unwrap();
-    let fake_gh = write_fake_gh(dir.path(), &gh_state);
+    let fake_gh = write_fake_gh(dir.path());
     let fake_git = write_fake_git(dir.path());
 
     let mut paths = vec![fake_git.parent().unwrap().to_path_buf()];
@@ -170,6 +191,7 @@ fn github_pages_publishes_bundle_on_first_run() {
     let out = Command::new(env!("CARGO_BIN_EXE_toktally"))
         .env("PATH", &path)
         .env("TOKEN_USAGE_GH", &fake_gh)
+        .env("FAKE_GH_STATE", &gh_state)
         .env("TOKEN_USAGE_STORE", &store)
         .env("TOKEN_USAGE_HARNESS_HOME", &home)
         .env("TOKTALLY_IDENTITY_DIR", &key_dir)
@@ -177,7 +199,11 @@ fn github_pages_publishes_bundle_on_first_run() {
         .output()
         .unwrap();
 
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(

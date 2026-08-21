@@ -2,7 +2,8 @@
 
 use tempfile::tempdir;
 use toktally_cli::{
-    github_badge_markdown, render_summary_card, summarize, website_embed_html, USAGE_CARD_JS,
+    github_badge_markdown, publish_snippets, render_summary_card, summarize, website_embed_html,
+    USAGE_CARD_JS,
 };
 use toktally_domain::{
     Harness, ObservationIdentity, ObservationSource, SessionId, SessionStoreCompleteness,
@@ -40,6 +41,40 @@ fn github_badge_markdown_points_shields_at_the_badge_json_url() {
     assert!(
         !md.contains("session_id") && !md.contains("hermes-sess"),
         "badge snippet must not leak session ids: {md}"
+    );
+}
+#[test]
+fn shipped_card_has_no_decorative_outer_border() {
+    assert!(
+        USAGE_CARD_JS.contains("border:0;border-radius:0;background:var(--tk-bg)"),
+        "card should not add a border around the embed"
+    );
+}
+
+#[test]
+fn github_badge_markdown_is_a_well_formed_image() {
+    let md = github_badge_markdown("https://example.com/usage/usage-badge.json");
+    assert!(
+        md.starts_with("!["),
+        "badge must be an image, not a link with no target: {md}"
+    );
+    assert!(
+        md.ends_with(')'),
+        "a trailing bracket renders literally on GitHub: {md}"
+    );
+    assert_eq!(
+        md.matches('[').count(),
+        1,
+        "an unmatched bracket renders literally on GitHub: {md}"
+    );
+}
+
+#[test]
+fn publish_snippets_offer_the_static_chart_for_readmes() {
+    let snippets = publish_snippets("https://you.github.io/usage");
+    assert!(
+        snippets.contains("![toktally usage](https://you.github.io/usage/chart.svg)"),
+        "READMEs cannot run the card script, so the SVG must be offered: {snippets}"
     );
 }
 

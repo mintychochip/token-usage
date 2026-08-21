@@ -8,7 +8,13 @@ pub const USAGE_CARD_JS: &str = include_str!("../../../embed/usage-card.js");
 /// Shields.io endpoint markdown for a published `usage-badge.json` URL.
 pub fn github_badge_markdown(badge_json_url: &str) -> String {
     let encoded = encode_query(badge_json_url);
-    format!("[![toktally](https://img.shields.io/endpoint?url={encoded})]")
+    format!("![toktally](https://img.shields.io/endpoint?url={encoded})")
+}
+
+/// Markdown for the pre-rendered `chart.svg`. A README cannot run the card
+/// script, so the static image is the only chart GitHub will display.
+pub fn github_chart_markdown(chart_svg_url: &str) -> String {
+    format!("![toktally usage]({chart_svg_url})")
 }
 
 /// HTML paste snippet that loads the published summary (no session ids).
@@ -44,13 +50,15 @@ pub fn join_published_url(base: &str, file: &str) -> String {
     format!("{base}/{file}")
 }
 
-/// Both paste snippets for a published directory or gist base URL.
+/// Paste snippets for a published directory or gist base URL.
 pub fn publish_snippets(base_url: &str) -> String {
     let badge = join_published_url(base_url, "usage-badge.json");
+    let chart = join_published_url(base_url, "chart.svg");
     let summary = join_published_url(base_url, "usage-summary.json");
     format!(
-        "GitHub README:\n{}\n\nWebsite:\n{}",
+        "GitHub README:\n{}\n{}\n\nWebsite:\n{}",
         github_badge_markdown(&badge),
+        github_chart_markdown(&chart),
         website_embed_html(&summary)
     )
 }
