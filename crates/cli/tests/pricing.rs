@@ -180,3 +180,38 @@ fn wire_round_trip_keeps_model_and_does_not_persist_user_price() {
     let back = wire.into_observation().unwrap();
     assert_eq!(back.model(), Some("anthropic/claude-sonnet-4.6"));
 }
+
+#[test]
+fn malformed_prices_are_rejected_not_parsed_as_nan_or_negative() {
+    let table = parse_openrouter_prices(&serde_json::json!({
+        "data": [
+            {
+                "id": "bad/nan",
+                "pricing": { "prompt": "NaN", "completion": "0.000015" }
+            },
+            {
+                "id": "bad/negative",
+                "pricing": { "prompt": "-0.000001", "completion": "0.000015" }
+            },
+            {
+                "id": "bad/inf",
+                "pricing": { "prompt": "inf", "completion": "0.000015" }
+            }
+        ]
+    }))
+    .unwrap();
+    // None of the malformed entries may enter the table: no cost for them,
+    // and the summary must serialize (no NaN) rather than error.
+    assert_eq!(
+        estimate_cost_usd(&table, Some("bad/nan"), &UsageCounts::new(100, 10)),
+        None
+    );
+    assert_eq!(
+        estimate_cost_usd(&table, Some("bad/negative"), &UsageCounts::new(100, 10)),
+        None
+    );
+    assert_eq!(
+        estimate_cost_usd(&table, Some("bad/inf"), &UsageCounts::new(100, 10)),
+        None
+    );
+}
