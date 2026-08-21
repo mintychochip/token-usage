@@ -250,3 +250,87 @@ fn harness_first_sync_is_recorded_once_until_updated() {
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].harness, Harness::Grok);
 }
+
+/// Path of the advisory lock sidecar guarding cross-process access.
+fn dir_lock_path(store: &FileStore) -> std::path::PathBuf {
+    store.path().with_extension("json.lock")
+}
+
+#[test]
+fn ingest_blocks_while_another_process_holds_the_store_lock() {
+    let (_dir, store) = open_store();
+    let mut guard = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(dir_lock_path(&store))
+        .unwrap();
+    fs4::fs_std::FileExt::lock_exclusive(&guard).unwrap();
+
+    let handle = std::thread::spawn(move || {
+        store
+            .ingest(observation(
+                Harness::ClaudeCode,
+                "locked-1",
+                5,
+                6,
+                ObservationSource::PluginReport,
+                SessionStoreCompleteness::Complete,
+            ))
+            .unwrap();
+    });
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    assert!(
+        !handle.is_finished(),
+        "ingest must block while the lock file is held by another writer"
+    );
+    fs4::fs_std::FileExt::unlock(&mut guard).unwrap();
+    handle.join().unwrap();
+}
+
+#[test]
+fn parallel_store_instances_on_one_path_do_not_lose_updates() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("store.json");
+    let handles: Vec<_> = (0..8)
+        .map(|worker| {
+            let path = path.clone();
+            std::thread::spawn(move || {
+                let store = FileStore::open(path).unwrap();
+                for i in 0..25 {
+                    store
+                        .ingest(observation(
+                            Harness::ClaudeCode,
+                            &format!("w{worker}-s{i}"),
+                            1,
+                            1,
+                            ObservationSource::PluginReport,
+                            SessionStoreCompleteness::Complete,
+                        ))
+                        .unwrap();
+                }
+            })
+        })
+        .collect();
+    for h in handles {
+        h.join().unwrap();
+    }
+    let store = FileStore::open(path).unwrap();
+    assert_eq!(
+        store.list().unwrap().len(),
+        200,
+        "no update may be lost across instances"
+    );
+}
+
+#[test]
+fn reads_work_on_a_brand_new_store_without_a_sidecar() {
+    let dir = tempdir().unwrap();
+    let store = FileStore::open(dir.path().join("fresh.json")).unwrap();
+    assert!(
+        !dir.path().join("fresh.json.lock").exists(),
+        "sidecar must not be created eagerly"
+    );
+    assert_eq!(store.list().unwrap().len(), 0);
+    assert!(store.needs_first_sync(Harness::Pi).unwrap());
+}
